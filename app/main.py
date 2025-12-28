@@ -8,6 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Set
 
@@ -15,7 +16,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-from app.config import settings
+from app.config import settings, TRADING_PAIRS
 from app.database import db
 from app.services.scheduler import get_scheduler
 
@@ -228,14 +229,84 @@ async def stop_scheduler():
     return {"status": "stopped"}
 
 
+# Price Stream endpoints
+from app.services.price_stream import get_price_stream, PriceStream
+
+# Global price stream for dashboard
+_dashboard_price_stream: PriceStream = None
+
+
+@app.post("/api/prices/connect")
+async def connect_price_stream():
+    """Connect to Polygon WebSocket for real-time prices."""
+    global _dashboard_price_stream
+
+    if _dashboard_price_stream is None:
+        _dashboard_price_stream = PriceStream(api_key=settings.polygon_api_key)
+
+    if _dashboard_price_stream.is_connected:
+        return {"status": "already_connected", "pairs": list(_dashboard_price_stream._subscribed_pairs)}
+
+    success = await _dashboard_price_stream.connect()
+    if success:
+        await _dashboard_price_stream.subscribe(TRADING_PAIRS)
+        return {"status": "connected", "pairs": TRADING_PAIRS}
+    return {"status": "failed", "error": "Could not connect to Polygon WebSocket"}
+
+
+@app.post("/api/prices/disconnect")
+async def disconnect_price_stream():
+    """Disconnect from Polygon WebSocket."""
+    global _dashboard_price_stream
+
+    if _dashboard_price_stream and _dashboard_price_stream.is_connected:
+        await _dashboard_price_stream.disconnect()
+        return {"status": "disconnected"}
+    return {"status": "not_connected"}
+
+
+@app.get("/api/prices")
+async def get_prices():
+    """Get current real-time prices for all subscribed pairs."""
+    global _dashboard_price_stream
+
+    if _dashboard_price_stream is None or not _dashboard_price_stream.is_connected:
+        return {"connected": False, "prices": {}}
+
+    prices = {}
+    for pair in _dashboard_price_stream._subscribed_pairs:
+        quote = _dashboard_price_stream.get_quote(pair)
+        if quote:
+            prices[pair] = {
+                "bid": quote.bid,
+                "ask": quote.ask,
+                "mid": quote.mid,
+                "spread_pips": quote.spread_pips,
+                "timestamp": quote.timestamp.isoformat(),
+            }
+
+    return {"connected": True, "pairs": list(_dashboard_price_stream._subscribed_pairs), "prices": prices}
+
+
+def serialize(obj):
+    """Convert Decimals and other non-JSON types to JSON-serializable."""
+    if isinstance(obj, dict):
+        return {k: serialize(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [serialize(v) for v in obj]
+    elif isinstance(obj, Decimal):
+        return float(obj)
+    return obj
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for real-time updates."""
     await ws_manager.connect(websocket)
     try:
         # Send initial data
-        account_data = await get_account()
-        scheduler_data = get_scheduler().get_status()
+        account_data = serialize(await get_account())
+        scheduler_data = serialize(get_scheduler().get_status())
         await websocket.send_json({"type": "account", "data": account_data})
         await websocket.send_json({"type": "scheduler", "data": scheduler_data})
 
@@ -246,8 +317,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 await asyncio.wait_for(websocket.receive_text(), timeout=30.0)
             except asyncio.TimeoutError:
                 # Send periodic updates every 30 seconds
-                account_data = await get_account()
-                scheduler_data = get_scheduler().get_status()
+                account_data = serialize(await get_account())
+                scheduler_data = serialize(get_scheduler().get_status())
                 await websocket.send_json({"type": "account", "data": account_data})
                 await websocket.send_json({"type": "scheduler", "data": scheduler_data})
     except WebSocketDisconnect:

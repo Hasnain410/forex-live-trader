@@ -7,17 +7,20 @@ Implements a pre-warm pipeline for low-latency execution:
 
 Timeline (relative to session open T+0):
 - T-120s: Pre-warm OHLC data for all pairs (parallel fetch)
-- T-60s:  Pre-generate charts for all pairs (parallel generation)
+- T-60s:  Pre-generate charts + connect WebSocket (parallel generation)
 - T+0s:   Run predictions and open trades (sequential per pair)
-- T+4h:   Verify trades and update rolling window
+- T+Xm:   TP/SL hit detected via WebSocket → close trade immediately
+- T+4h:   Verify remaining trades (TIMEOUT) and update rolling window
 
 Key components:
 - APScheduler for DST-aware job scheduling
 - Asyncio for concurrent OHLC/chart pre-warming
+- Polygon WebSocket for real-time price streaming
 - Sequential prediction to avoid API rate limits
 """
 
 import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Any
 from decimal import Decimal
@@ -31,7 +34,10 @@ from ..utils.polygon_client import fetch_ohlc_data_async
 from .chart_gen import generate_chart, CHARTS_DIR
 from .predictor import predict
 from .risk_engine import calculate_risk_parameters
-from .trade_executor import open_trade, close_trade, add_to_rolling_window, refresh_percentiles
+from .trade_executor import open_trade, close_trade, add_to_rolling_window, refresh_percentiles, cleanup_old_rolling_data
+from .price_stream import PriceStream, PriceAlert, get_price_stream
+
+logger = logging.getLogger(__name__)
 
 
 # Pre-warm timing (seconds before session open)
@@ -46,7 +52,9 @@ class TradingScheduler:
     Handles:
     - Session scheduling (Asian, London, NY opens)
     - Pre-warming (OHLC and chart generation)
-    - Trade execution
+    - Real-time price streaming (Polygon WebSocket)
+    - Trade execution with live prices
+    - TP/SL monitoring and early exit
     - Trade verification
     """
 
@@ -56,6 +64,8 @@ class TradingScheduler:
         self._chart_cache: Dict[str, str] = {}  # pair -> chart_path
         self._current_session: Optional[str] = None
         self._active_trades: Dict[str, Dict] = {}  # trade_id -> trade info
+        self._price_stream: Optional[PriceStream] = None
+        self._pending_verifications: Dict[str, Dict] = {}  # trade_id -> info for rolling window
 
     def start(self):
         """Start the scheduler."""
@@ -63,12 +73,103 @@ class TradingScheduler:
             self.scheduler.start()
             print("Trading scheduler started")
             self._schedule_next_session()
+            self._schedule_daily_cleanup()
 
     def stop(self):
         """Stop the scheduler."""
         if self.scheduler.running:
             self.scheduler.shutdown()
             print("Trading scheduler stopped")
+
+    def _schedule_daily_cleanup(self):
+        """
+        Schedule daily cleanup of old rolling window data.
+
+        Runs at 00:00 UTC daily to remove data older than 6 months.
+        """
+        from apscheduler.triggers.cron import CronTrigger
+
+        self.scheduler.add_job(
+            self._run_daily_cleanup,
+            trigger=CronTrigger(hour=0, minute=0, timezone='UTC'),
+            id="daily_cleanup",
+            replace_existing=True
+        )
+        print("  Daily cleanup scheduled at 00:00 UTC")
+
+    async def _run_daily_cleanup(self):
+        """
+        Run daily cleanup tasks:
+        1. Remove rolling window data older than 6 months
+        2. Refresh percentiles after cleanup
+        """
+        logger.info("Running daily cleanup...")
+
+        try:
+            # Cleanup old rolling window data
+            deleted = await cleanup_old_rolling_data()
+            logger.info(f"  Cleaned up {deleted} old rolling window records")
+
+            # Refresh percentiles if any data was deleted
+            if deleted > 0:
+                await refresh_percentiles()
+                logger.info("  Refreshed percentiles after cleanup")
+
+        except Exception as e:
+            logger.error(f"Daily cleanup error: {e}")
+
+    async def _on_price_alert(self, alert: PriceAlert):
+        """
+        Handle TP/SL alert from price stream.
+
+        Called immediately when price hits TP or SL level.
+        Closes trade in real-time instead of waiting for T+4h verification.
+        """
+        trade_id = alert.trade_id
+        trade_info = self._active_trades.get(trade_id)
+
+        if not trade_info:
+            logger.warning(f"Alert for unknown trade: {trade_id}")
+            return
+
+        try:
+            outcome = "WIN" if alert.trigger_type == "TP" else "LOSS"
+            is_stop = alert.trigger_type == "SL"
+
+            logger.info(f"[REAL-TIME] {trade_info['pair']}: {outcome} at {alert.trigger_price} "
+                       f"(trigger: {alert.trigger_type})")
+
+            # Close trade immediately
+            result = await close_trade(
+                trade_id=trade_id,
+                exit_price=alert.trigger_price,
+                outcome=outcome,
+                is_stop_exit=is_stop
+            )
+
+            if result:
+                logger.info(f"  Trade closed: P/L ${result.pnl_dollars:+.2f}")
+
+                # Store info for rolling window update at session end
+                self._pending_verifications[trade_id] = {
+                    'pair': trade_info['pair'],
+                    'session_name': trade_info['session_name'],
+                    'session_datetime': trade_info['session_datetime'],
+                    'prediction': trade_info['prediction'],
+                    'outcome': outcome,
+                    'trigger_price': alert.trigger_price,
+                    'trigger_time': alert.trigger_time,
+                }
+
+                # Remove from active trades
+                del self._active_trades[trade_id]
+
+                # Remove alert from price stream
+                if self._price_stream:
+                    self._price_stream.remove_alert(trade_id)
+
+        except Exception as e:
+            logger.error(f"Error handling alert for {trade_id}: {e}")
 
     def _get_next_session(self) -> tuple:
         """
@@ -204,12 +305,25 @@ class TradingScheduler:
 
     async def _prewarm_charts(self, session_name: str, session_dt: datetime):
         """
-        Pre-generate charts for all pairs.
+        Pre-generate charts for all pairs and connect WebSocket.
 
         Uses cached OHLC data to generate charts in parallel.
+        Also connects to Polygon WebSocket for real-time prices.
         """
         print(f"\n[T-{CHART_PREWARM_SECONDS}s] Pre-generating charts...")
         self._chart_cache.clear()
+
+        # Connect to Polygon WebSocket for real-time prices
+        if self._price_stream is None:
+            self._price_stream = PriceStream(
+                api_key=settings.polygon_api_key,
+                on_alert=self._on_price_alert
+            )
+
+        if not self._price_stream.is_connected:
+            if await self._price_stream.connect():
+                await self._price_stream.subscribe(TRADING_PAIRS)
+                print(f"  WebSocket connected, subscribed to {len(TRADING_PAIRS)} pairs")
 
         async def generate_pair_chart(pair: str):
             try:
@@ -288,11 +402,25 @@ class TradingScheduler:
                 if prediction == 'NEUTRAL':
                     continue
 
-                # Get current price (last close from OHLC)
-                ohlc_df = self._ohlc_cache.get(pair)
-                if ohlc_df is None or ohlc_df.empty:
-                    continue
-                entry_price = float(ohlc_df['close'].iloc[-1])
+                # Get current price (prefer real-time WebSocket, fallback to OHLC)
+                entry_price = None
+                spread_pips = 0.0
+
+                if self._price_stream and self._price_stream.is_connected:
+                    quote = self._price_stream.get_quote(pair)
+                    if quote:
+                        # Use bid for BEARISH (selling), ask for BULLISH (buying)
+                        entry_price = quote.ask if prediction == 'BULLISH' else quote.bid
+                        spread_pips = quote.spread_pips
+                        logger.info(f"    Real-time price: {entry_price:.5f} (spread: {spread_pips:.1f} pips)")
+
+                # Fallback to last OHLC close
+                if entry_price is None:
+                    ohlc_df = self._ohlc_cache.get(pair)
+                    if ohlc_df is None or ohlc_df.empty:
+                        continue
+                    entry_price = float(ohlc_df['close'].iloc[-1])
+                    logger.info(f"    Using OHLC close: {entry_price:.5f}")
 
                 # Calculate risk parameters
                 risk_params = await calculate_risk_parameters(
@@ -326,9 +454,24 @@ class TradingScheduler:
                     'stop_loss': trade.stop_loss,
                 }
 
-                print(f"    Trade opened: {trade.trade_id[:8]}... "
-                      f"TP={trade.tp_pips:.1f} SL={trade.sl_pips:.1f} "
-                      f"Lots={trade.lot_size}")
+                # Register TP/SL alert for real-time monitoring
+                if self._price_stream and self._price_stream.is_connected:
+                    alert = PriceAlert(
+                        trade_id=trade.trade_id,
+                        pair=pair,
+                        direction=prediction,
+                        entry_price=trade.entry_price,
+                        take_profit=trade.take_profit,
+                        stop_loss=trade.stop_loss,
+                    )
+                    self._price_stream.add_alert(alert)
+                    print(f"    Trade opened: {trade.trade_id[:8]}... "
+                          f"TP={trade.tp_pips:.1f} SL={trade.sl_pips:.1f} "
+                          f"Lots={trade.lot_size} [LIVE MONITORING]")
+                else:
+                    print(f"    Trade opened: {trade.trade_id[:8]}... "
+                          f"TP={trade.tp_pips:.1f} SL={trade.sl_pips:.1f} "
+                          f"Lots={trade.lot_size}")
 
             except Exception as e:
                 print(f"  Error processing {pair}: {e}")
@@ -346,29 +489,80 @@ class TradingScheduler:
         """
         Verify trades at session close.
 
-        Fetches actual OHLC for the session period to determine:
-        - Did TP hit? (WIN)
-        - Did SL hit? (LOSS)
-        - Neither? (TIMEOUT - close at session end)
+        Handles two types of trades:
+        1. Real-time closed trades (TP/SL hit via WebSocket) - update rolling window
+        2. Remaining active trades (TIMEOUT) - close and update rolling window
         """
         print(f"\n[T+4h] Verifying {session_name} trades...")
 
         # Calculate session end time
         session_end = session_dt + timedelta(hours=4)
+        from ..utils.forex_utils import get_pip_value
 
-        # Get trades for this session
+        # First, process trades that were already closed via WebSocket
+        realtime_closed = [
+            (tid, info) for tid, info in self._pending_verifications.items()
+            if (info['session_name'] == session_name and
+                info['session_datetime'] == session_dt)
+        ]
+
+        for trade_id, info in realtime_closed:
+            try:
+                pair = info['pair']
+
+                # Fetch OHLC to calculate MFE/MAE for rolling window
+                df = await fetch_ohlc_data_async(
+                    pair=pair,
+                    start_date=session_dt,
+                    end_date=session_end,
+                    api_key=settings.polygon_api_key
+                )
+
+                if df is not None and not df.empty:
+                    entry = info.get('entry_price', df['open'].iloc[0])
+                    pip_value = get_pip_value(pair)
+                    session_high = df['high'].max()
+                    session_low = df['low'].min()
+
+                    if info['prediction'] == 'BULLISH':
+                        mfe_pips = (session_high - entry) / pip_value
+                        mae_pips = abs(entry - session_low) / pip_value
+                    else:
+                        mfe_pips = abs(entry - session_low) / pip_value
+                        mae_pips = (session_high - entry) / pip_value
+
+                    correct = info['outcome'] == "WIN"
+                    await add_to_rolling_window(
+                        pair=pair,
+                        session_name=session_name,
+                        session_datetime=session_dt,
+                        prediction=info['prediction'],
+                        correct=correct,
+                        mfe_pips=round(mfe_pips, 1),
+                        mae_pips=round(mae_pips, 1),
+                    )
+                    print(f"  {pair}: {info['outcome']} [REAL-TIME] added to rolling window")
+
+                del self._pending_verifications[trade_id]
+
+            except Exception as e:
+                logger.error(f"Error processing real-time trade {trade_id}: {e}")
+
+        # Now handle remaining active trades (TIMEOUT - didn't hit TP/SL)
         trades_to_verify = [
             (tid, tinfo) for tid, tinfo in self._active_trades.items()
             if (tinfo['session_name'] == session_name and
                 tinfo['session_datetime'] == session_dt)
         ]
 
-        if not trades_to_verify:
+        if not trades_to_verify and not realtime_closed:
             print("  No trades to verify")
+            # Disconnect WebSocket if no more active trades
+            if self._price_stream and self._price_stream.is_connected:
+                await self._price_stream.disconnect()
             return
 
         verified = 0
-        from ..utils.forex_utils import get_pip_value
 
         for trade_id, trade_info in trades_to_verify:
             try:
@@ -379,22 +573,19 @@ class TradingScheduler:
                     pair=pair,
                     start_date=session_dt,
                     end_date=session_end,
-                    api_key=settings.POLYGON_API_KEY
+                    api_key=settings.polygon_api_key
                 )
 
                 if df is None or df.empty:
                     print(f"  {pair}: No verification data")
                     continue
 
-                # Determine outcome
+                # These trades didn't hit TP/SL - close as TIMEOUT
                 prediction = trade_info['prediction']
                 entry = trade_info['entry_price']
-                tp = trade_info['take_profit']
-                sl = trade_info['stop_loss']
-
+                session_close = df['close'].iloc[-1]
                 session_high = df['high'].max()
                 session_low = df['low'].min()
-                session_close = df['close'].iloc[-1]
 
                 pip_value = get_pip_value(pair)
 
@@ -402,47 +593,26 @@ class TradingScheduler:
                 if prediction == 'BULLISH':
                     mfe_pips = (session_high - entry) / pip_value
                     mae_pips = abs(entry - session_low) / pip_value
-                    hit_tp = session_high >= tp
-                    hit_sl = session_low <= sl
                 else:
                     mfe_pips = abs(entry - session_low) / pip_value
                     mae_pips = (session_high - entry) / pip_value
-                    hit_tp = session_low <= tp
-                    hit_sl = session_high >= sl
 
-                # Determine outcome
-                if hit_tp and hit_sl:
-                    # Both hit - need to check which first (simplified: assume TP)
-                    outcome = "WIN"
-                    exit_price = tp
-                    is_stop = False
-                elif hit_tp:
-                    outcome = "WIN"
-                    exit_price = tp
-                    is_stop = False
-                elif hit_sl:
-                    outcome = "LOSS"
-                    exit_price = sl
-                    is_stop = True
-                else:
-                    outcome = "TIMEOUT"
-                    exit_price = session_close
-                    is_stop = False
-
-                # Close trade
+                # Close as TIMEOUT at session end price
                 result = await close_trade(
                     trade_id=trade_id,
-                    exit_price=exit_price,
-                    outcome=outcome,
-                    is_stop_exit=is_stop
+                    exit_price=session_close,
+                    outcome="TIMEOUT",
+                    is_stop_exit=False
                 )
 
                 if result:
-                    print(f"  {pair}: {outcome} (P/L: {result.pnl_dollars:+.2f})")
+                    print(f"  {pair}: TIMEOUT (P/L: {result.pnl_dollars:+.2f})")
                     verified += 1
 
-                    # Add to rolling window
-                    correct = outcome == "WIN"
+                    # For TIMEOUT, check if it was actually profitable
+                    # (close_trade determines actual P/L from entry vs exit)
+                    correct = result.pnl_dollars > 0
+
                     await add_to_rolling_window(
                         pair=pair,
                         session_name=session_name,
@@ -456,19 +626,44 @@ class TradingScheduler:
                     # Remove from active trades
                     del self._active_trades[trade_id]
 
+                    # Remove alert if still registered
+                    if self._price_stream:
+                        self._price_stream.remove_alert(trade_id)
+
             except Exception as e:
                 print(f"  Error verifying {trade_id[:8]}...: {e}")
 
-        # Refresh percentiles
-        if verified > 0:
+        # Refresh percentiles if any trades were verified
+        total_verified = verified + len(realtime_closed)
+        if total_verified > 0:
             print(f"  Refreshing percentiles...")
             await refresh_percentiles()
 
-        print(f"  Verified {verified}/{len(trades_to_verify)} trades")
+        print(f"  Verified {total_verified} trades ({len(realtime_closed)} real-time, {verified} timeout)")
+
+        # Disconnect WebSocket if no more active trades
+        if not self._active_trades and self._price_stream and self._price_stream.is_connected:
+            await self._price_stream.disconnect()
+            print("  WebSocket disconnected (no active trades)")
 
     def get_status(self) -> dict:
         """Get scheduler status for API."""
         session_name, session_dt = self._get_next_session()
+
+        # Get real-time prices for active trades
+        live_prices = {}
+        if self._price_stream and self._price_stream.is_connected:
+            for trade_id, trade_info in self._active_trades.items():
+                pair = trade_info['pair']
+                quote = self._price_stream.get_quote(pair)
+                if quote:
+                    live_prices[pair] = {
+                        'bid': quote.bid,
+                        'ask': quote.ask,
+                        'mid': quote.mid,
+                        'spread_pips': quote.spread_pips,
+                        'timestamp': quote.timestamp.isoformat(),
+                    }
 
         return {
             "running": self.scheduler.running,
@@ -477,6 +672,8 @@ class TradingScheduler:
             "active_trades": len(self._active_trades),
             "cached_ohlc": len(self._ohlc_cache),
             "cached_charts": len(self._chart_cache),
+            "websocket_connected": self._price_stream.is_connected if self._price_stream else False,
+            "live_prices": live_prices,
         }
 
 

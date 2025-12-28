@@ -8,36 +8,35 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #0a0a0f;
-            --card: #12121a;
-            --border: #1e1e2e;
-            --text: #e0e0e0;
-            --muted: #888;
+            --bg: #09090b;
+            --card: #18181b;
+            --border: #27272a;
+            --text: #fafafa;
+            --muted: #71717a;
             --green: #22c55e;
             --red: #ef4444;
             --blue: #3b82f6;
-            --yellow: #eab308;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
-            padding: 1rem;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
         header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem 0;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         header h1 {
-            font-size: 1.25rem;
+            font-size: 1.5rem;
             font-weight: 600;
         }
 
@@ -46,6 +45,7 @@
             align-items: center;
             gap: 0.5rem;
             font-size: 0.875rem;
+            color: var(--muted);
         }
 
         .status-dot {
@@ -53,138 +53,79 @@
             height: 8px;
             border-radius: 50%;
             background: var(--green);
-            animation: pulse 2s infinite;
         }
 
-        .status-dot.offline { background: var(--red); animation: none; }
+        .status-dot.offline { background: var(--red); }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .grid {
+        /* Stats Grid */
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            grid-template-columns: repeat(5, 1fr);
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
 
-        .card {
+        .stat-card {
             background: var(--card);
             border: 1px solid var(--border);
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 1.25rem;
         }
 
-        .card h2 {
+        .stat-label {
             font-size: 0.75rem;
+            color: var(--muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            color: var(--muted);
-            margin-bottom: 0.75rem;
+            margin-bottom: 0.5rem;
         }
 
-        .stat {
-            font-size: 2rem;
-            font-weight: 700;
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 600;
             font-variant-numeric: tabular-nums;
         }
 
-        .stat.positive { color: var(--green); }
-        .stat.negative { color: var(--red); }
+        .stat-value.positive { color: var(--green); }
+        .stat-value.negative { color: var(--red); }
 
-        .stat-row {
+        .stat-sub {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Scheduler Card - Special */
+        .scheduler-card {
             display: flex;
             justify-content: space-between;
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            color: var(--muted);
-        }
-
-        .scheduler-card {
-            grid-column: span 2;
-        }
-
-        .scheduler-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
+            align-items: center;
         }
 
         .countdown {
-            font-size: 2.5rem;
+            font-size: 2rem;
             font-weight: 700;
             font-variant-numeric: tabular-nums;
             color: var(--blue);
         }
 
-        .next-session {
-            font-size: 1rem;
-            color: var(--text);
-            margin-top: 0.25rem;
+        .session-info {
+            text-align: right;
+        }
+
+        .session-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
         }
 
         .session-time {
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             color: var(--muted);
         }
 
-        .pipeline-status {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .pipeline-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.875rem;
-        }
-
-        .pipeline-item .icon {
-            width: 20px;
-            text-align: center;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.875rem;
-        }
-
-        th, td {
-            text-align: left;
-            padding: 0.75rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            color: var(--muted);
-            font-weight: 500;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-        }
-
-        tr:hover { background: rgba(255,255,255,0.02); }
-
-        .badge {
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .badge.win { background: rgba(34, 197, 94, 0.2); color: var(--green); }
-        .badge.loss { background: rgba(239, 68, 68, 0.2); color: var(--red); }
-        .badge.pending { background: rgba(234, 179, 8, 0.2); color: var(--yellow); }
-        .badge.bullish { background: rgba(34, 197, 94, 0.2); color: var(--green); }
-        .badge.bearish { background: rgba(239, 68, 68, 0.2); color: var(--red); }
-
+        /* Section */
         .section {
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .section-header {
@@ -194,73 +135,58 @@
             margin-bottom: 1rem;
         }
 
-        .section-header h2 {
+        .section-title {
             font-size: 1rem;
             font-weight: 600;
         }
 
-        .tabs {
-            display: flex;
-            gap: 0.5rem;
+        /* Table */
+        .table-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
         }
 
-        .tab {
-            padding: 0.5rem 1rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            color: var(--muted);
-            cursor: pointer;
+        table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 0.875rem;
         }
 
-        .tab.active {
-            background: var(--card);
-            color: var(--text);
-            border-color: var(--blue);
-        }
-
-        .percentile-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 0.75rem;
-        }
-
-        .percentile-item {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.75rem;
-        }
-
-        .percentile-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-
-        .percentile-pair {
-            font-weight: 600;
-            font-size: 0.875rem;
-        }
-
-        .percentile-session {
-            font-size: 0.7rem;
+        th {
+            text-align: left;
+            padding: 0.875rem 1rem;
+            font-weight: 500;
             color: var(--muted);
-        }
-
-        .percentile-values {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
             font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
         }
 
-        .pv-label { color: var(--muted); }
-        .pv-value { text-align: right; font-variant-numeric: tabular-nums; }
-        .pv-value.tp { color: var(--green); }
-        .pv-value.sl { color: var(--red); }
+        td {
+            padding: 0.875rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.625rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge.win { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+        .badge.loss { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+        .badge.open { background: rgba(59, 130, 246, 0.15); color: var(--blue); }
+        .badge.bullish { background: rgba(34, 197, 94, 0.15); color: var(--green); }
+        .badge.bearish { background: rgba(239, 68, 68, 0.15); color: var(--red); }
 
         .empty-state {
             text-align: center;
@@ -268,9 +194,187 @@
             color: var(--muted);
         }
 
-        @media (max-width: 768px) {
-            .scheduler-card { grid-column: span 1; }
-            .scheduler-content { grid-template-columns: 1fr; }
+        /* Collapsible */
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.25rem;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .collapsible-header:hover {
+            background: rgba(255,255,255,0.02);
+        }
+
+        .collapsible-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .collapsible-toggle {
+            color: var(--muted);
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .collapsible-content {
+            display: none;
+            border-top: 1px solid var(--border);
+        }
+
+        .collapsible-content.open {
+            display: block;
+        }
+
+        /* Percentile Table */
+        .pct-table th, .pct-table td {
+            text-align: center;
+            padding: 0.625rem 0.5rem;
+        }
+
+        .pct-table th:first-child, .pct-table td:first-child {
+            text-align: left;
+            padding-left: 1rem;
+        }
+
+        .pct-pair {
+            font-weight: 600;
+        }
+
+        .pct-session {
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-left: 0.5rem;
+        }
+
+        .pct-value {
+            font-variant-numeric: tabular-nums;
+        }
+
+        .pct-value.tp { color: var(--green); }
+        .pct-value.sl { color: var(--red); }
+
+        /* Filter tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--bg);
+            padding: 0.25rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .filter-tab {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.15s;
+        }
+
+        .filter-tab:hover {
+            color: var(--text);
+        }
+
+        .filter-tab.active {
+            background: var(--card);
+            color: var(--text);
+        }
+
+        /* Connect button */
+        .connect-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background: var(--card);
+            color: var(--text);
+            font-size: 0.75rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .connect-btn:hover {
+            background: var(--border);
+        }
+
+        .connect-btn.connected {
+            border-color: var(--green);
+        }
+
+        .connect-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+        }
+
+        .connect-dot.active {
+            background: var(--green);
+            box-shadow: 0 0 8px var(--green);
+        }
+
+        /* Price ticker grid */
+        .price-ticker-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1px;
+            background: var(--border);
+        }
+
+        .price-ticker-item {
+            background: var(--card);
+            padding: 0.875rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .price-ticker-pair {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .price-ticker-mid {
+            font-size: 1.125rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .price-ticker-spread {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .price-ticker-bid { color: var(--green); }
+        .price-ticker-ask { color: var(--red); }
+
+        @media (max-width: 1024px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .stats-grid > :last-child {
+                grid-column: span 2;
+            }
+        }
+
+        @media (max-width: 640px) {
+            body { padding: 1rem; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .stats-grid > :last-child { grid-column: span 1; }
         }
     </style>
 </head>
@@ -278,79 +382,74 @@
     <header>
         <h1>Forex Live Trader</h1>
         <div class="status">
-            <div class="status-dot" id="statusDot"></div>
+            <div class="status-dot" id="wsDot" title="Polygon WebSocket"></div>
+            <span id="wsText">WS</span>
+            <div class="status-dot" id="statusDot" style="margin-left: 1rem;"></div>
             <span id="statusText">Connecting...</span>
         </div>
     </header>
 
-    <div class="grid">
-        <div class="card">
-            <h2>Balance</h2>
-            <div class="stat" id="balance">$0.00</div>
-            <div class="stat-row">
-                <span>Initial</span>
-                <span id="initialBalance">$0.00</span>
-            </div>
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Balance</div>
+            <div class="stat-value" id="balance">$10,000.00</div>
+            <div class="stat-sub">Initial: <span id="initialBalance">$10,000.00</span></div>
         </div>
 
-        <div class="card">
-            <h2>Profit / Loss</h2>
-            <div class="stat" id="pnl">$0.00</div>
-            <div class="stat-row">
-                <span>Return</span>
-                <span id="pnlPct">0.00%</span>
-            </div>
+        <div class="stat-card">
+            <div class="stat-label">Profit / Loss</div>
+            <div class="stat-value" id="pnl">$0.00</div>
+            <div class="stat-sub" id="pnlPct">0.00%</div>
         </div>
 
-        <div class="card">
-            <h2>Win Rate</h2>
-            <div class="stat" id="winRate">0%</div>
-            <div class="stat-row">
-                <span id="winLoss">0W / 0L</span>
-                <span id="totalTrades">0 trades</span>
-            </div>
+        <div class="stat-card">
+            <div class="stat-label">Win Rate</div>
+            <div class="stat-value" id="winRate">0%</div>
+            <div class="stat-sub"><span id="wins">0</span>W / <span id="losses">0</span>L</div>
         </div>
 
-        <div class="card">
-            <h2>Max Drawdown</h2>
-            <div class="stat negative" id="drawdown">0.00%</div>
-            <div class="stat-row">
-                <span>Peak</span>
-                <span id="peakBalance">$0.00</span>
-            </div>
+        <div class="stat-card">
+            <div class="stat-label">Drawdown</div>
+            <div class="stat-value negative" id="drawdown">0.00%</div>
+            <div class="stat-sub">Peak: <span id="peakBalance">$10,000.00</span></div>
         </div>
 
-        <div class="card scheduler-card">
-            <h2>Scheduler</h2>
-            <div class="scheduler-content">
-                <div>
-                    <div class="countdown" id="countdown">--:--:--</div>
-                    <div class="next-session" id="nextSession">Loading...</div>
-                    <div class="session-time" id="sessionTime"></div>
-                </div>
-                <div class="pipeline-status">
-                    <div class="pipeline-item">
-                        <span class="icon" id="ohlcIcon">○</span>
-                        <span>OHLC Pre-warm (<span id="ohlcCount">0</span> pairs)</span>
-                    </div>
-                    <div class="pipeline-item">
-                        <span class="icon" id="chartIcon">○</span>
-                        <span>Charts Pre-gen (<span id="chartCount">0</span> ready)</span>
-                    </div>
-                    <div class="pipeline-item">
-                        <span class="icon" id="tradeIcon">○</span>
-                        <span>Active Trades: <span id="activeTrades">0</span></span>
-                    </div>
-                </div>
+        <div class="stat-card scheduler-card">
+            <div>
+                <div class="stat-label">Next Session</div>
+                <div class="countdown" id="countdown">--:--:--</div>
+            </div>
+            <div class="session-info">
+                <div class="session-name" id="nextSession">-</div>
+                <div class="session-time" id="sessionTime">-</div>
             </div>
         </div>
     </div>
 
+    <!-- Real-Time Price Ticker -->
     <div class="section">
         <div class="section-header">
-            <h2>Recent Trades</h2>
+            <h2 class="section-title">Real-Time Prices</h2>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <span class="stat-sub" id="priceUpdateTime">-</span>
+                <button class="connect-btn" id="priceConnectBtn" onclick="togglePriceStream()">
+                    <span class="connect-dot" id="priceConnectDot"></span>
+                    <span id="priceConnectText">Connect</span>
+                </button>
+            </div>
         </div>
-        <div class="card">
+        <div class="table-card" id="priceTickerCard">
+            <div id="priceTickerContent" class="empty-state">Click Connect to stream real-time prices</div>
+        </div>
+    </div>
+
+    <!-- Recent Trades -->
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Recent Trades</h2>
+        </div>
+        <div class="table-card">
             <table>
                 <thead>
                     <tr>
@@ -366,39 +465,54 @@
                     </tr>
                 </thead>
                 <tbody id="tradesBody">
-                    <tr>
-                        <td colspan="9" class="empty-state">No trades yet</td>
-                    </tr>
+                    <tr><td colspan="9" class="empty-state">No trades yet</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
+    <!-- Percentile Targets (Collapsible) -->
     <div class="section">
-        <div class="section-header">
-            <h2>Percentile Targets</h2>
-            <div class="tabs">
-                <button class="tab active" data-session="all">All</button>
-                <button class="tab" data-session="Asian_Open">Asian</button>
-                <button class="tab" data-session="London_Open">London</button>
-                <button class="tab" data-session="NY_Open">NY</button>
+        <div class="table-card">
+            <div class="collapsible-header" onclick="togglePercentiles()">
+                <span class="collapsible-title">Percentile Targets</span>
+                <div class="collapsible-toggle">
+                    <div class="filter-tabs" onclick="event.stopPropagation()">
+                        <button class="filter-tab active" data-session="all">All</button>
+                        <button class="filter-tab" data-session="Asian_Open">Asian</button>
+                        <button class="filter-tab" data-session="London_Open">London</button>
+                        <button class="filter-tab" data-session="NY_Open">NY</button>
+                    </div>
+                    <span id="toggleText">Show</span>
+                </div>
             </div>
-        </div>
-        <div class="percentile-grid" id="percentileGrid">
-            <div class="empty-state">Loading percentiles...</div>
+            <div class="collapsible-content" id="percentileContent">
+                <table class="pct-table">
+                    <thead>
+                        <tr>
+                            <th>Pair</th>
+                            <th>TP (P50)</th>
+                            <th>SL (P75)</th>
+                            <th>Accuracy</th>
+                            <th>Samples</th>
+                        </tr>
+                    </thead>
+                    <tbody id="percentileBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
-        // State
         let account = {};
         let scheduler = {};
         let trades = [];
         let percentiles = [];
         let selectedSession = 'all';
-        let ws = null;
+        let percentilesOpen = false;
+        let priceStreamConnected = false;
+        let pricePollingInterval = null;
 
-        // Format helpers
         const fmt = {
             usd: (v) => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
             pct: (v) => Number(v || 0).toFixed(2) + '%',
@@ -413,10 +527,8 @@
             }
         };
 
-        // Countdown timer
         function updateCountdown() {
             if (!scheduler.next_session_time) return;
-
             const target = new Date(scheduler.next_session_time);
             const now = new Date();
             const diff = target - now;
@@ -429,12 +541,10 @@
             const hours = Math.floor(diff / 3600000);
             const mins = Math.floor((diff % 3600000) / 60000);
             const secs = Math.floor((diff % 60000) / 1000);
-
             document.getElementById('countdown').textContent =
                 `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
-        // Update UI
         function updateAccountUI() {
             const pnl = account.pnl || 0;
             document.getElementById('balance').textContent = fmt.usd(account.balance);
@@ -442,40 +552,37 @@
 
             const pnlEl = document.getElementById('pnl');
             pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt.usd(pnl);
-            pnlEl.className = 'stat ' + (pnl >= 0 ? 'positive' : 'negative');
+            pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'positive' : 'negative');
 
             document.getElementById('pnlPct').textContent = (account.pnl_pct >= 0 ? '+' : '') + fmt.pct(account.pnl_pct);
             document.getElementById('winRate').textContent = fmt.pct(account.win_rate);
-            document.getElementById('winLoss').textContent = `${account.winning_trades || 0}W / ${account.losing_trades || 0}L`;
-            document.getElementById('totalTrades').textContent = `${account.total_trades || 0} trades`;
+            document.getElementById('wins').textContent = account.winning_trades || 0;
+            document.getElementById('losses').textContent = account.losing_trades || 0;
             document.getElementById('drawdown').textContent = fmt.pct(account.max_drawdown_pct);
             document.getElementById('peakBalance').textContent = fmt.usd(account.peak_balance);
         }
 
         function updateSchedulerUI() {
-            document.getElementById('nextSession').textContent = scheduler.next_session || '-';
+            document.getElementById('nextSession').textContent = scheduler.next_session?.replace('_', ' ') || '-';
             document.getElementById('sessionTime').textContent = scheduler.next_session_time
-                ? new Date(scheduler.next_session_time).toLocaleString()
-                : '';
-            document.getElementById('ohlcCount').textContent = scheduler.cached_ohlc || 0;
-            document.getElementById('chartCount').textContent = scheduler.cached_charts || 0;
-            document.getElementById('activeTrades').textContent = scheduler.active_trades || 0;
+                ? new Date(scheduler.next_session_time).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : '-';
 
-            // Update icons
-            document.getElementById('ohlcIcon').textContent = scheduler.cached_ohlc > 0 ? '●' : '○';
-            document.getElementById('chartIcon').textContent = scheduler.cached_charts > 0 ? '●' : '○';
-            document.getElementById('tradeIcon').textContent = scheduler.active_trades > 0 ? '●' : '○';
+            // Update WebSocket status indicator (for scheduler's trading WebSocket)
+            const wsConnected = scheduler.websocket_connected || false;
+            const wsDot = document.getElementById('wsDot');
+            wsDot.className = 'status-dot' + (wsConnected ? '' : ' offline');
+            wsDot.title = wsConnected ? 'Trading WebSocket: Connected' : 'Trading WebSocket: Disconnected';
         }
 
         function updateTradesUI() {
             const tbody = document.getElementById('tradesBody');
-
             if (!trades || trades.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No trades yet</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = trades.slice(0, 20).map(t => `
+            tbody.innerHTML = trades.slice(0, 15).map(t => `
                 <tr>
                     <td>${fmt.time(t.session_datetime)}</td>
                     <td><strong>${t.pair}</strong></td>
@@ -486,8 +593,8 @@
                     <td>${t.lot_size?.toFixed(2) || '-'}</td>
                     <td>${t.outcome
                         ? `<span class="badge ${t.outcome.toLowerCase()}">${t.outcome}</span>`
-                        : '<span class="badge pending">OPEN</span>'}</td>
-                    <td class="${(t.pnl_dollars || 0) >= 0 ? 'positive' : 'negative'}">
+                        : '<span class="badge open">OPEN</span>'}</td>
+                    <td style="color: ${(t.pnl_dollars || 0) >= 0 ? 'var(--green)' : 'var(--red)'}">
                         ${t.pnl_dollars != null ? ((t.pnl_dollars >= 0 ? '+' : '') + fmt.usd(t.pnl_dollars)) : '-'}
                     </td>
                 </tr>
@@ -495,45 +602,168 @@
         }
 
         function updatePercentilesUI() {
-            const grid = document.getElementById('percentileGrid');
-
+            const tbody = document.getElementById('percentileBody');
             let filtered = percentiles;
             if (selectedSession !== 'all') {
                 filtered = percentiles.filter(p => p.session_name === selectedSession);
             }
 
             if (!filtered || filtered.length === 0) {
-                grid.innerHTML = '<div class="empty-state">No percentile data</div>';
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">No data</td></tr>';
                 return;
             }
 
-            grid.innerHTML = filtered.map(p => `
-                <div class="percentile-item">
-                    <div class="percentile-header">
-                        <span class="percentile-pair">${p.pair}</span>
-                        <span class="percentile-session">${p.session_name?.replace('_Open', '')}</span>
-                    </div>
-                    <div class="percentile-values">
-                        <span class="pv-label">TP (P50)</span>
-                        <span class="pv-value tp">${p.mfe_p50?.toFixed(1)} pips</span>
-                        <span class="pv-label">SL (P75)</span>
-                        <span class="pv-value sl">${p.mae_p75?.toFixed(1)} pips</span>
-                        <span class="pv-label">Accuracy</span>
-                        <span class="pv-value">${p.accuracy_pct?.toFixed(1)}%</span>
-                        <span class="pv-label">Samples</span>
-                        <span class="pv-value">${p.sample_count}</span>
-                    </div>
-                </div>
+            tbody.innerHTML = filtered.map(p => `
+                <tr>
+                    <td>
+                        <span class="pct-pair">${p.pair}</span>
+                        <span class="pct-session">${p.session_name?.replace('_Open', '')}</span>
+                    </td>
+                    <td class="pct-value tp">${p.mfe_p50?.toFixed(1)} pips</td>
+                    <td class="pct-value sl">${p.mae_p75?.toFixed(1)} pips</td>
+                    <td class="pct-value">${p.accuracy_pct?.toFixed(1)}%</td>
+                    <td class="pct-value">${p.sample_count}</td>
+                </tr>
             `).join('');
         }
 
-        // Fetch data
+        function togglePercentiles() {
+            percentilesOpen = !percentilesOpen;
+            document.getElementById('percentileContent').classList.toggle('open', percentilesOpen);
+            document.getElementById('toggleText').textContent = percentilesOpen ? 'Hide' : 'Show';
+        }
+
+        async function togglePriceStream() {
+            const btn = document.getElementById('priceConnectBtn');
+            const dot = document.getElementById('priceConnectDot');
+            const text = document.getElementById('priceConnectText');
+            const content = document.getElementById('priceTickerContent');
+
+            if (priceStreamConnected) {
+                // Disconnect
+                text.textContent = 'Disconnecting...';
+                try {
+                    await fetch('/api/prices/disconnect', { method: 'POST' });
+                } catch (e) {}
+                priceStreamConnected = false;
+                if (pricePollingInterval) {
+                    clearInterval(pricePollingInterval);
+                    pricePollingInterval = null;
+                }
+                btn.classList.remove('connected');
+                dot.classList.remove('active');
+                text.textContent = 'Connect';
+                content.innerHTML = '<div class="empty-state">Click Connect to stream real-time prices</div>';
+                document.getElementById('priceUpdateTime').textContent = '-';
+            } else {
+                // Connect
+                text.textContent = 'Connecting...';
+                try {
+                    const res = await fetch('/api/prices/connect', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'connected' || data.status === 'already_connected') {
+                        priceStreamConnected = true;
+                        btn.classList.add('connected');
+                        dot.classList.add('active');
+                        text.textContent = 'Disconnect';
+                        content.innerHTML = '<div class="empty-state">Waiting for price data...</div>';
+                        // Start polling for prices
+                        fetchPrices();
+                        pricePollingInterval = setInterval(fetchPrices, 500);
+                    } else {
+                        text.textContent = 'Connect';
+                        content.innerHTML = '<div class="empty-state">Failed to connect: ' + (data.error || 'Unknown error') + '</div>';
+                    }
+                } catch (e) {
+                    text.textContent = 'Connect';
+                    content.innerHTML = '<div class="empty-state">Connection error: ' + e.message + '</div>';
+                }
+            }
+        }
+
+        async function fetchPrices() {
+            if (!priceStreamConnected) return;
+            try {
+                const res = await fetch('/api/prices');
+                const data = await res.json();
+                updatePriceTickerUI(data);
+            } catch (e) {
+                console.error('Price fetch error:', e);
+            }
+        }
+
+        function updatePriceTickerUI(data) {
+            const content = document.getElementById('priceTickerContent');
+
+            if (!data.connected) {
+                priceStreamConnected = false;
+                document.getElementById('priceConnectBtn').classList.remove('connected');
+                document.getElementById('priceConnectDot').classList.remove('active');
+                document.getElementById('priceConnectText').textContent = 'Connect';
+                content.innerHTML = '<div class="empty-state">Disconnected</div>';
+                if (pricePollingInterval) {
+                    clearInterval(pricePollingInterval);
+                    pricePollingInterval = null;
+                }
+                return;
+            }
+
+            const prices = data.prices || {};
+            const pairs = Object.keys(prices).sort();
+
+            if (pairs.length === 0) {
+                content.innerHTML = '<div class="empty-state">Connected - waiting for quotes (markets may be closed)</div>';
+                return;
+            }
+
+            // Find latest timestamp
+            let latestTime = null;
+            pairs.forEach(pair => {
+                const ts = prices[pair].timestamp;
+                if (ts && (!latestTime || new Date(ts) > new Date(latestTime))) {
+                    latestTime = ts;
+                }
+            });
+            document.getElementById('priceUpdateTime').textContent = latestTime
+                ? 'Updated: ' + new Date(latestTime).toLocaleTimeString()
+                : '';
+
+            content.innerHTML = '<div class="price-ticker-grid">' + pairs.map(pair => {
+                const p = prices[pair];
+                const decimals = (pair.includes('JPY') || pair.includes('XAG')) ? 3 : 5;
+                return `
+                    <div class="price-ticker-item">
+                        <div class="price-ticker-pair">${pair}</div>
+                        <div class="price-ticker-mid">${p.mid?.toFixed(decimals) || '-'}</div>
+                        <div class="price-ticker-spread">
+                            <span class="price-ticker-bid">Bid: ${p.bid?.toFixed(decimals) || '-'}</span>
+                            <span class="price-ticker-ask">Ask: ${p.ask?.toFixed(decimals) || '-'}</span>
+                        </div>
+                        <div class="price-ticker-spread">
+                            <span>Spread: ${p.spread_pips?.toFixed(1) || '-'} pips</span>
+                        </div>
+                    </div>
+                `;
+            }).join('') + '</div>';
+        }
+
+        // Filter tabs
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                selectedSession = tab.dataset.session;
+                updatePercentilesUI();
+            });
+        });
+
         async function fetchData() {
             try {
                 const [accRes, schRes, tradesRes, pctRes] = await Promise.all([
                     fetch('/api/account'),
                     fetch('/api/scheduler/status'),
-                    fetch('/api/trades?limit=20'),
+                    fetch('/api/trades?limit=15'),
                     fetch('/api/percentiles')
                 ]);
 
@@ -556,14 +786,10 @@
             }
         }
 
-        // WebSocket connection
+        // WebSocket
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
-
-            ws.onopen = () => {
-                console.log('WebSocket connected');
-            };
+            const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
@@ -575,36 +801,18 @@
                     updateSchedulerUI();
                 } else if (data.type === 'trade') {
                     trades.unshift(data.data);
-                    trades = trades.slice(0, 20);
+                    trades = trades.slice(0, 15);
                     updateTradesUI();
                 }
             };
 
-            ws.onclose = () => {
-                console.log('WebSocket disconnected, reconnecting...');
-                setTimeout(connectWebSocket, 3000);
-            };
-
-            ws.onerror = (err) => {
-                console.error('WebSocket error:', err);
-            };
+            ws.onclose = () => setTimeout(connectWebSocket, 3000);
         }
 
-        // Tab handlers
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                tab.classList.add('active');
-                selectedSession = tab.dataset.session;
-                updatePercentilesUI();
-            });
-        });
-
-        // Init
         fetchData();
         connectWebSocket();
         setInterval(updateCountdown, 1000);
-        setInterval(fetchData, 10000); // Refresh every 10s as fallback
+        setInterval(fetchData, 10000);
     </script>
 </body>
 </html>
