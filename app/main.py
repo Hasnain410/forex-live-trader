@@ -170,10 +170,17 @@ async def get_account():
 
 @app.get("/api/trades")
 async def get_trades(limit: int = 50, offset: int = 0):
-    """Get recent trades."""
+    """Get recent trades (excludes full_analysis for performance)."""
     rows = await db.fetch(
         """
-        SELECT * FROM trades
+        SELECT
+            id, trade_id, pair, session_name, session_datetime,
+            prediction, conviction, entry_price, spread_pips,
+            stop_loss, take_profit, sl_pips, tp_pips,
+            lot_size, risk_pct, mfe_percentile, mae_percentile,
+            exit_price, outcome, pnl_pips, pnl_dollars, commission,
+            created_at, verified_at
+        FROM trades
         ORDER BY session_datetime DESC
         LIMIT $1 OFFSET $2
         """,
@@ -181,6 +188,18 @@ async def get_trades(limit: int = 50, offset: int = 0):
         offset,
     )
     return [dict(row) for row in rows]
+
+
+@app.get("/api/trades/{trade_id}")
+async def get_trade_detail(trade_id: str):
+    """Get a single trade with full analysis."""
+    row = await db.fetchrow(
+        "SELECT * FROM trades WHERE trade_id = $1",
+        trade_id,
+    )
+    if row is None:
+        return {"error": "Trade not found"}
+    return dict(row)
 
 
 @app.get("/api/percentiles")
