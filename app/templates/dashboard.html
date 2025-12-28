@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forex Live Trader</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --border: #1e1e2e;
+            --text: #e0e0e0;
+            --muted: #888;
+            --green: #22c55e;
+            --red: #ef4444;
+            --blue: #3b82f6;
+            --yellow: #eab308;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.offline { background: var(--red); animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.25rem;
+        }
+
+        .card h2 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .stat {
+            font-size: 2rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .stat.positive { color: var(--green); }
+        .stat.negative { color: var(--red); }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+
+        .scheduler-card {
+            grid-column: span 2;
+        }
+
+        .scheduler-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .countdown {
+            font-size: 2.5rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            color: var(--blue);
+        }
+
+        .next-session {
+            font-size: 1rem;
+            color: var(--text);
+            margin-top: 0.25rem;
+        }
+
+        .session-time {
+            font-size: 0.875rem;
+            color: var(--muted);
+        }
+
+        .pipeline-status {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .pipeline-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .pipeline-item .icon {
+            width: 20px;
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 500;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        .badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.win { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+        .badge.loss { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+        .badge.pending { background: rgba(234, 179, 8, 0.2); color: var(--yellow); }
+        .badge.bullish { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+        .badge.bearish { background: rgba(239, 68, 68, 0.2); color: var(--red); }
+
+        .section {
+            margin-bottom: 1.5rem;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .section-header h2 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .tab.active {
+            background: var(--card);
+            color: var(--text);
+            border-color: var(--blue);
+        }
+
+        .percentile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .percentile-item {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem;
+        }
+
+        .percentile-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .percentile-pair {
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .percentile-session {
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        .percentile-values {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .pv-label { color: var(--muted); }
+        .pv-value { text-align: right; font-variant-numeric: tabular-nums; }
+        .pv-value.tp { color: var(--green); }
+        .pv-value.sl { color: var(--red); }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted);
+        }
+
+        @media (max-width: 768px) {
+            .scheduler-card { grid-column: span 1; }
+            .scheduler-content { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Forex Live Trader</h1>
+        <div class="status">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </header>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Balance</h2>
+            <div class="stat" id="balance">$0.00</div>
+            <div class="stat-row">
+                <span>Initial</span>
+                <span id="initialBalance">$0.00</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Profit / Loss</h2>
+            <div class="stat" id="pnl">$0.00</div>
+            <div class="stat-row">
+                <span>Return</span>
+                <span id="pnlPct">0.00%</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Win Rate</h2>
+            <div class="stat" id="winRate">0%</div>
+            <div class="stat-row">
+                <span id="winLoss">0W / 0L</span>
+                <span id="totalTrades">0 trades</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Max Drawdown</h2>
+            <div class="stat negative" id="drawdown">0.00%</div>
+            <div class="stat-row">
+                <span>Peak</span>
+                <span id="peakBalance">$0.00</span>
+            </div>
+        </div>
+
+        <div class="card scheduler-card">
+            <h2>Scheduler</h2>
+            <div class="scheduler-content">
+                <div>
+                    <div class="countdown" id="countdown">--:--:--</div>
+                    <div class="next-session" id="nextSession">Loading...</div>
+                    <div class="session-time" id="sessionTime"></div>
+                </div>
+                <div class="pipeline-status">
+                    <div class="pipeline-item">
+                        <span class="icon" id="ohlcIcon">○</span>
+                        <span>OHLC Pre-warm (<span id="ohlcCount">0</span> pairs)</span>
+                    </div>
+                    <div class="pipeline-item">
+                        <span class="icon" id="chartIcon">○</span>
+                        <span>Charts Pre-gen (<span id="chartCount">0</span> ready)</span>
+                    </div>
+                    <div class="pipeline-item">
+                        <span class="icon" id="tradeIcon">○</span>
+                        <span>Active Trades: <span id="activeTrades">0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Recent Trades</h2>
+        </div>
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Pair</th>
+                        <th>Session</th>
+                        <th>Direction</th>
+                        <th>Entry</th>
+                        <th>TP / SL</th>
+                        <th>Lots</th>
+                        <th>Outcome</th>
+                        <th>P/L</th>
+                    </tr>
+                </thead>
+                <tbody id="tradesBody">
+                    <tr>
+                        <td colspan="9" class="empty-state">No trades yet</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header">
+            <h2>Percentile Targets</h2>
+            <div class="tabs">
+                <button class="tab active" data-session="all">All</button>
+                <button class="tab" data-session="Asian_Open">Asian</button>
+                <button class="tab" data-session="London_Open">London</button>
+                <button class="tab" data-session="NY_Open">NY</button>
+            </div>
+        </div>
+        <div class="percentile-grid" id="percentileGrid">
+            <div class="empty-state">Loading percentiles...</div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let account = {};
+        let scheduler = {};
+        let trades = [];
+        let percentiles = [];
+        let selectedSession = 'all';
+        let ws = null;
+
+        // Format helpers
+        const fmt = {
+            usd: (v) => '$' + Number(v || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            pct: (v) => Number(v || 0).toFixed(2) + '%',
+            price: (v, pair) => {
+                const decimals = (pair && (pair.includes('JPY') || pair.includes('XAG'))) ? 3 : 5;
+                return Number(v || 0).toFixed(decimals);
+            },
+            time: (iso) => {
+                if (!iso) return '-';
+                const d = new Date(iso);
+                return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            }
+        };
+
+        // Countdown timer
+        function updateCountdown() {
+            if (!scheduler.next_session_time) return;
+
+            const target = new Date(scheduler.next_session_time);
+            const now = new Date();
+            const diff = target - now;
+
+            if (diff <= 0) {
+                document.getElementById('countdown').textContent = 'NOW';
+                return;
+            }
+
+            const hours = Math.floor(diff / 3600000);
+            const mins = Math.floor((diff % 3600000) / 60000);
+            const secs = Math.floor((diff % 60000) / 1000);
+
+            document.getElementById('countdown').textContent =
+                `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // Update UI
+        function updateAccountUI() {
+            const pnl = account.pnl || 0;
+            document.getElementById('balance').textContent = fmt.usd(account.balance);
+            document.getElementById('initialBalance').textContent = fmt.usd(account.initial_balance);
+
+            const pnlEl = document.getElementById('pnl');
+            pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt.usd(pnl);
+            pnlEl.className = 'stat ' + (pnl >= 0 ? 'positive' : 'negative');
+
+            document.getElementById('pnlPct').textContent = (account.pnl_pct >= 0 ? '+' : '') + fmt.pct(account.pnl_pct);
+            document.getElementById('winRate').textContent = fmt.pct(account.win_rate);
+            document.getElementById('winLoss').textContent = `${account.winning_trades || 0}W / ${account.losing_trades || 0}L`;
+            document.getElementById('totalTrades').textContent = `${account.total_trades || 0} trades`;
+            document.getElementById('drawdown').textContent = fmt.pct(account.max_drawdown_pct);
+            document.getElementById('peakBalance').textContent = fmt.usd(account.peak_balance);
+        }
+
+        function updateSchedulerUI() {
+            document.getElementById('nextSession').textContent = scheduler.next_session || '-';
+            document.getElementById('sessionTime').textContent = scheduler.next_session_time
+                ? new Date(scheduler.next_session_time).toLocaleString()
+                : '';
+            document.getElementById('ohlcCount').textContent = scheduler.cached_ohlc || 0;
+            document.getElementById('chartCount').textContent = scheduler.cached_charts || 0;
+            document.getElementById('activeTrades').textContent = scheduler.active_trades || 0;
+
+            // Update icons
+            document.getElementById('ohlcIcon').textContent = scheduler.cached_ohlc > 0 ? '●' : '○';
+            document.getElementById('chartIcon').textContent = scheduler.cached_charts > 0 ? '●' : '○';
+            document.getElementById('tradeIcon').textContent = scheduler.active_trades > 0 ? '●' : '○';
+        }
+
+        function updateTradesUI() {
+            const tbody = document.getElementById('tradesBody');
+
+            if (!trades || trades.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No trades yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = trades.slice(0, 20).map(t => `
+                <tr>
+                    <td>${fmt.time(t.session_datetime)}</td>
+                    <td><strong>${t.pair}</strong></td>
+                    <td>${t.session_name?.replace('_Open', '')}</td>
+                    <td><span class="badge ${t.prediction?.toLowerCase()}">${t.prediction}</span></td>
+                    <td>${fmt.price(t.entry_price, t.pair)}</td>
+                    <td>${t.tp_pips?.toFixed(1) || '-'} / ${t.sl_pips?.toFixed(1) || '-'}</td>
+                    <td>${t.lot_size?.toFixed(2) || '-'}</td>
+                    <td>${t.outcome
+                        ? `<span class="badge ${t.outcome.toLowerCase()}">${t.outcome}</span>`
+                        : '<span class="badge pending">OPEN</span>'}</td>
+                    <td class="${(t.pnl_dollars || 0) >= 0 ? 'positive' : 'negative'}">
+                        ${t.pnl_dollars != null ? ((t.pnl_dollars >= 0 ? '+' : '') + fmt.usd(t.pnl_dollars)) : '-'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function updatePercentilesUI() {
+            const grid = document.getElementById('percentileGrid');
+
+            let filtered = percentiles;
+            if (selectedSession !== 'all') {
+                filtered = percentiles.filter(p => p.session_name === selectedSession);
+            }
+
+            if (!filtered || filtered.length === 0) {
+                grid.innerHTML = '<div class="empty-state">No percentile data</div>';
+                return;
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div class="percentile-item">
+                    <div class="percentile-header">
+                        <span class="percentile-pair">${p.pair}</span>
+                        <span class="percentile-session">${p.session_name?.replace('_Open', '')}</span>
+                    </div>
+                    <div class="percentile-values">
+                        <span class="pv-label">TP (P50)</span>
+                        <span class="pv-value tp">${p.mfe_p50?.toFixed(1)} pips</span>
+                        <span class="pv-label">SL (P75)</span>
+                        <span class="pv-value sl">${p.mae_p75?.toFixed(1)} pips</span>
+                        <span class="pv-label">Accuracy</span>
+                        <span class="pv-value">${p.accuracy_pct?.toFixed(1)}%</span>
+                        <span class="pv-label">Samples</span>
+                        <span class="pv-value">${p.sample_count}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Fetch data
+        async function fetchData() {
+            try {
+                const [accRes, schRes, tradesRes, pctRes] = await Promise.all([
+                    fetch('/api/account'),
+                    fetch('/api/scheduler/status'),
+                    fetch('/api/trades?limit=20'),
+                    fetch('/api/percentiles')
+                ]);
+
+                account = await accRes.json();
+                scheduler = await schRes.json();
+                trades = await tradesRes.json();
+                percentiles = await pctRes.json();
+
+                updateAccountUI();
+                updateSchedulerUI();
+                updateTradesUI();
+                updatePercentilesUI();
+
+                document.getElementById('statusDot').className = 'status-dot';
+                document.getElementById('statusText').textContent = 'Live';
+            } catch (err) {
+                console.error('Fetch error:', err);
+                document.getElementById('statusDot').className = 'status-dot offline';
+                document.getElementById('statusText').textContent = 'Offline';
+            }
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'account') {
+                    account = data.data;
+                    updateAccountUI();
+                } else if (data.type === 'scheduler') {
+                    scheduler = data.data;
+                    updateSchedulerUI();
+                } else if (data.type === 'trade') {
+                    trades.unshift(data.data);
+                    trades = trades.slice(0, 20);
+                    updateTradesUI();
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected, reconnecting...');
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+        }
+
+        // Tab handlers
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                selectedSession = tab.dataset.session;
+                updatePercentilesUI();
+            });
+        });
+
+        // Init
+        fetchData();
+        connectWebSocket();
+        setInterval(updateCountdown, 1000);
+        setInterval(fetchData, 10000); // Refresh every 10s as fallback
+    </script>
+</body>
+</html>

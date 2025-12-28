@@ -1,0 +1,44 @@
+# FastAPI + ASGI
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+
+# Database
+asyncpg>=0.29.0
+alembic>=1.13.0
+sqlalchemy>=2.0.0
+
+# Scheduling
+apscheduler>=3.10.4
+
+# Data processing
+pandas>=2.1.0
+numpy>=1.26.0
+pyarrow>=14.0.0
+
+# HTTP client
+httpx>=0.26.0
+aiohttp>=3.9.0
+
+# Chart generation
+matplotlib>=3.8.0
+mplfinance>=0.12.9b7
+scipy>=1.11.0
+
+# Claude API
+anthropic>=0.18.0
+
+# Polygon API
+polygon-api-client>=1.13.0
+
+# Configuration
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Timezone handling
+pytz>=2024.1
+python-dateutil>=2.8.0
+
+# Utilities
+tenacity>=8.2.0
