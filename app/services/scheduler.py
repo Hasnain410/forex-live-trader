@@ -435,12 +435,13 @@ class TradingScheduler:
                     print(f"    No risk parameters for {pair}")
                     continue
 
-                # Open trade
+                # Open trade with full analysis
                 trade = await open_trade(
                     risk_params=risk_params,
                     prediction=prediction,
                     conviction=conviction,
                     session_datetime=session_dt,
+                    full_analysis=result.get('full_analysis'),  # Save Claude's full analysis
                 )
 
                 trades_opened += 1

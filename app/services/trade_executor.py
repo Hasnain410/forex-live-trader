@@ -34,6 +34,7 @@ class TradeEntry:
     session_datetime: datetime
     prediction: str
     conviction: int
+    full_analysis: Optional[str]  # Full Claude analysis text
     entry_price: float
     spread_pips: float
     stop_loss: float
@@ -92,6 +93,7 @@ async def open_trade(
     prediction: str,
     conviction: int,
     session_datetime: datetime,
+    full_analysis: Optional[str] = None,
 ) -> TradeEntry:
     """
     Open a simulated trade.
@@ -104,6 +106,7 @@ async def open_trade(
         prediction: 'BULLISH' or 'BEARISH'
         conviction: Conviction score (1-10)
         session_datetime: Session datetime
+        full_analysis: Full Claude analysis text (optional)
 
     Returns:
         TradeEntry with trade details
@@ -128,13 +131,13 @@ async def open_trade(
     query = """
         INSERT INTO trades (
             trade_id, pair, session_name, session_datetime,
-            prediction, conviction,
+            prediction, conviction, full_analysis,
             entry_price, spread_pips,
             stop_loss, take_profit, sl_pips, tp_pips,
             lot_size, risk_pct, mfe_percentile, mae_percentile,
             created_at
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
         )
         RETURNING id
     """
@@ -148,6 +151,7 @@ async def open_trade(
             session_datetime,
             prediction,
             conviction,
+            full_analysis,
             adjusted_entry,
             risk_params.spread_pips,
             risk_params.stop_loss,
@@ -168,6 +172,7 @@ async def open_trade(
         session_datetime=session_datetime,
         prediction=prediction,
         conviction=conviction,
+        full_analysis=full_analysis,
         entry_price=adjusted_entry,
         spread_pips=risk_params.spread_pips,
         stop_loss=risk_params.stop_loss,

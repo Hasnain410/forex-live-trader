@@ -119,12 +119,12 @@ async def insert_trade(trade_data: dict) -> str:
         """
         INSERT INTO trades (
             pair, session_name, session_datetime,
-            prediction, conviction,
+            prediction, conviction, full_analysis,
             entry_price, spread_pips,
             stop_loss, take_profit, sl_pips, tp_pips,
             lot_size, risk_pct, mfe_percentile, mae_percentile
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
         )
         RETURNING trade_id
         """,
@@ -133,6 +133,7 @@ async def insert_trade(trade_data: dict) -> str:
         trade_data["session_datetime"],
         trade_data["prediction"],
         trade_data["conviction"],
+        trade_data.get("full_analysis"),  # Full Claude analysis text
         trade_data["entry_price"],
         trade_data["spread_pips"],
         trade_data["stop_loss"],
