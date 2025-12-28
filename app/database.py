@@ -205,14 +205,16 @@ async def update_rolling_window(prediction_data: dict):
 
 
 async def prune_old_rolling_window():
-    """Remove predictions older than 6 months."""
+    """Mark predictions older than 6 months as excluded from rolling window."""
     result = await db.execute(
         """
-        DELETE FROM rolling_window
-        WHERE session_datetime < NOW() - INTERVAL '6 months'
+        UPDATE rolling_window
+        SET in_window = FALSE
+        WHERE in_window = TRUE
+          AND session_datetime < NOW() - INTERVAL '6 months'
         """
     )
-    logger.info(f"Pruned old rolling window data: {result}")
+    logger.info(f"Marked old rolling window data as excluded: {result}")
 
 
 async def refresh_percentiles():

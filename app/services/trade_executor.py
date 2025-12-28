@@ -428,19 +428,24 @@ async def refresh_percentiles() -> None:
 
 async def cleanup_old_rolling_data() -> int:
     """
-    Remove rolling window data older than 6 months.
+    Mark rolling window data older than 6 months as excluded.
+
+    Instead of deleting, sets in_window = FALSE to preserve historical data
+    while excluding from percentile calculations.
 
     Returns:
-        Number of rows deleted
+        Number of rows marked as excluded
     """
     pool = await get_db_pool()
 
     async with pool.acquire() as conn:
         result = await conn.execute("""
-            DELETE FROM rolling_window
-            WHERE session_datetime < NOW() - INTERVAL '6 months'
+            UPDATE rolling_window
+            SET in_window = FALSE
+            WHERE in_window = TRUE
+              AND session_datetime < NOW() - INTERVAL '6 months'
         """)
-        # Parse "DELETE X" to get count
+        # Parse "UPDATE X" to get count
         count = int(result.split()[-1]) if result else 0
         return count
 
