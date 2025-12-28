@@ -6,6 +6,17 @@ from .risk_engine import calculate_risk_parameters, get_percentiles, get_all_per
 from .trade_executor import open_trade, close_trade, get_account_status
 from .scheduler import get_scheduler, TradingScheduler
 from .price_stream import PriceStream, PriceAlert, get_price_stream, start_price_stream, stop_price_stream
+from .storage import (
+    upload_to_s3,
+    upload_to_s3_async,
+    upload_chart_to_s3,
+    upload_chart_to_s3_async,
+    get_chart_s3_url,
+    get_chart_https_url,
+    download_from_s3,
+    check_s3_exists,
+    list_charts_in_s3,
+)
 
 __all__ = [
     # Chart generation
@@ -31,4 +42,14 @@ __all__ = [
     "get_price_stream",
     "start_price_stream",
     "stop_price_stream",
+    # S3 Storage
+    "upload_to_s3",
+    "upload_to_s3_async",
+    "upload_chart_to_s3",
+    "upload_chart_to_s3_async",
+    "get_chart_s3_url",
+    "get_chart_https_url",
+    "download_from_s3",
+    "check_s3_exists",
+    "list_charts_in_s3",
 ]

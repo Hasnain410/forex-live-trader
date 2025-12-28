@@ -232,6 +232,9 @@ async def stop_scheduler():
 # Price Stream endpoints
 from app.services.price_stream import get_price_stream, PriceStream
 
+# S3 Storage endpoints
+from app.services.storage import list_charts_in_s3, get_chart_https_url, check_s3_exists
+
 # Global price stream for dashboard
 _dashboard_price_stream: PriceStream = None
 
@@ -286,6 +289,59 @@ async def get_prices():
             }
 
     return {"connected": True, "pairs": list(_dashboard_price_stream._subscribed_pairs), "prices": prices}
+
+
+# S3 Chart Storage endpoints
+@app.get("/api/charts")
+async def list_charts(pair: str = None):
+    """List charts in S3, optionally filtered by pair."""
+    charts = list_charts_in_s3(pair=pair)
+
+    # Parse chart keys to extract metadata
+    chart_list = []
+    for key in charts:
+        # Key format: live-trader-charts/EURUSD/EURUSD_20251228_0800_London_Open.png
+        parts = key.split('/')
+        if len(parts) >= 3:
+            filename = parts[-1]
+            pair_from_key = parts[-2]
+
+            # Parse filename: EURUSD_20251228_0800_London_Open.png
+            name_parts = filename.replace('.png', '').split('_')
+            if len(name_parts) >= 4:
+                chart_list.append({
+                    "key": key,
+                    "pair": pair_from_key,
+                    "date": name_parts[1],
+                    "time": name_parts[2],
+                    "session": '_'.join(name_parts[3:]),
+                    "url": get_chart_https_url(pair_from_key, filename)
+                })
+
+    return {"charts": chart_list, "count": len(chart_list)}
+
+
+@app.get("/api/charts/{pair}")
+async def list_pair_charts(pair: str):
+    """List all charts for a specific pair."""
+    return await list_charts(pair=pair)
+
+
+@app.get("/api/charts/{pair}/{filename}")
+async def get_chart_url(pair: str, filename: str):
+    """Get the CDN URL for a specific chart."""
+    s3_key = f"live-trader-charts/{pair}/{filename}"
+    exists = check_s3_exists(s3_key)
+
+    if not exists:
+        return {"error": "Chart not found", "exists": False}
+
+    return {
+        "exists": True,
+        "pair": pair,
+        "filename": filename,
+        "url": get_chart_https_url(pair, filename)
+    }
 
 
 def serialize(obj):

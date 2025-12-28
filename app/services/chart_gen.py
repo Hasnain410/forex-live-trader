@@ -29,6 +29,7 @@ from scipy.signal import find_peaks
 from ..utils.session_utils import get_session_times_for_date
 from ..utils.polygon_client import fetch_ohlc_data_async
 from ..config import settings, CHARTS_DIR
+from .storage import upload_chart_to_s3_async, get_chart_https_url
 
 # Chart configuration
 SWING_PROMINENCE = 0.002
@@ -425,8 +426,10 @@ async def generate_session_chart(
     pair: str,
     session_name: str,
     session_dt: datetime,
-    ohlc_df: Optional[pd.DataFrame] = None
-) -> Optional[str]:
+    ohlc_df: Optional[pd.DataFrame] = None,
+    upload_to_s3: bool = True,
+    delete_local_after_upload: bool = False
+) -> Dict[str, Any]:
     """
     High-level function to generate a chart for a session.
 
@@ -438,17 +441,54 @@ async def generate_session_chart(
         session_name: Session name (e.g., 'London_Open')
         session_dt: Session datetime (UTC)
         ohlc_df: Pre-fetched OHLC data (optional, for pre-warming)
+        upload_to_s3: Whether to upload chart to S3 (default True)
+        delete_local_after_upload: Whether to delete local file after S3 upload
 
     Returns:
-        Path to saved chart or None on error
+        Dict with keys:
+            - local_path: Path to local chart file (or None)
+            - s3_url: S3 URL if uploaded (or None)
+            - https_url: CloudFront HTTPS URL if uploaded (or None)
+            - success: Whether chart was generated successfully
     """
+    result = {
+        "local_path": None,
+        "s3_url": None,
+        "https_url": None,
+        "success": False
+    }
+
     # Fetch OHLC if not provided
     if ohlc_df is None:
         ohlc_df = await fetch_ohlc_for_chart(pair, session_dt)
 
     if ohlc_df is None or ohlc_df.empty:
         print(f"No OHLC data available for {pair}")
-        return None
+        return result
 
     # Generate chart
-    return generate_chart(ohlc_df, pair, session_name, session_dt, CHARTS_DIR)
+    local_path = generate_chart(ohlc_df, pair, session_name, session_dt, CHARTS_DIR)
+
+    if local_path is None:
+        return result
+
+    result["local_path"] = local_path
+    result["success"] = True
+
+    # Upload to S3
+    if upload_to_s3:
+        s3_url = await upload_chart_to_s3_async(
+            local_path,
+            pair,
+            delete_local=delete_local_after_upload
+        )
+        if s3_url:
+            result["s3_url"] = s3_url
+            # Generate CloudFront URL
+            filename = Path(local_path).name
+            result["https_url"] = get_chart_https_url(pair, filename)
+
+            if delete_local_after_upload:
+                result["local_path"] = None  # Local file was deleted
+
+    return result

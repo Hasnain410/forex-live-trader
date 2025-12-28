@@ -23,6 +23,9 @@ aiohttp>=3.9.0
 # WebSocket client
 websockets>=12.0
 
+# AWS SDK
+boto3>=1.34.0
+
 # Chart generation
 matplotlib>=3.8.0
 mplfinance>=0.12.9b7
