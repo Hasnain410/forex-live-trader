@@ -17,7 +17,7 @@ from typing import Optional, Tuple
 
 from ..config import settings, ECN_SPREADS
 from ..database import get_db_pool
-from ..utils.forex_utils import get_pip_value
+from ..utils.forex_utils import get_pip_value, get_pip_value_in_usd
 
 
 @dataclass
@@ -179,11 +179,13 @@ def calculate_position_size(
 
     Formula: lot_size = (balance * risk%) / (SL_pips * pip_value_per_lot)
 
-    Standard lot pip values (approximate):
-    - EUR/USD: $10 per pip per lot
-    - GBP/USD: $10 per pip per lot
-    - USD/JPY: ~$9.09 per pip per lot (varies with USD/JPY rate)
-    - XAU/USD: $1 per pip per 0.01 lot
+    Uses get_pip_value_in_usd() for accurate pip values by quote currency:
+    - USD quote (EURUSD, GBPUSD): $10.00 per pip
+    - JPY quote (USDJPY, EURJPY): ~$6.37 per pip
+    - GBP quote (EURGBP): ~$12.60 per pip
+    - AUD quote (EURAUD, GBPAUD): ~$6.20 per pip
+    - Gold (XAUUSD): $100.00 per pip
+    - Silver (XAGUSD): $50.00 per pip
 
     Args:
         balance: Current account balance
@@ -200,16 +202,8 @@ def calculate_position_size(
     # Calculate risk in dollars
     risk_dollars = float(balance) * (float(risk_percent) / 100)
 
-    # Pip value per standard lot (simplified - assumes USD account)
-    # For most pairs: $10 per pip per lot
-    # For JPY pairs: ~$9 per pip per lot
-    # For XAU/USD: $1 per pip per 0.1 lot ($10 per pip per lot)
-    if 'JPY' in pair:
-        pip_value_per_lot = 9.0  # Approximate for JPY pairs
-    elif 'XAU' in pair or 'XAG' in pair:
-        pip_value_per_lot = 10.0  # Metals
-    else:
-        pip_value_per_lot = 10.0  # Standard for most pairs
+    # Get accurate pip value for this pair's quote currency
+    pip_value_per_lot = get_pip_value_in_usd(pair)
 
     # Calculate lot size
     if sl_pips <= 0:

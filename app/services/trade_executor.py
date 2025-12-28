@@ -21,7 +21,7 @@ from typing import Optional, Literal
 
 from ..config import settings, ECN_SPREADS, SLIPPAGE
 from ..database import get_db_pool
-from ..utils.forex_utils import get_pip_value
+from ..utils.forex_utils import get_pip_value, get_pip_value_in_usd
 from .risk_engine import RiskParameters
 
 
@@ -243,13 +243,8 @@ async def close_trade(
             # Exit slippage works against us
             pnl_pips = raw_pips - slippage_pips
 
-        # Calculate P/L in dollars
-        # Standard lot: $10 per pip for most pairs
-        if 'JPY' in pair:
-            pip_value_usd = 9.0
-        else:
-            pip_value_usd = 10.0
-
+        # Calculate P/L in dollars using accurate pip value for quote currency
+        pip_value_usd = get_pip_value_in_usd(pair)
         pnl_dollars = pnl_pips * pip_value_usd * lot_size
 
         # Calculate commission
