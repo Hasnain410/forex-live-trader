@@ -491,8 +491,8 @@
                     <thead>
                         <tr>
                             <th>Pair</th>
-                            <th>TP (P50)</th>
-                            <th>SL (P75)</th>
+                            <th>TP (P75)</th>
+                            <th>SL (P50)</th>
                             <th>Accuracy</th>
                             <th>Samples</th>
                         </tr>
@@ -619,8 +619,8 @@
                         <span class="pct-pair">${p.pair}</span>
                         <span class="pct-session">${p.session_name?.replace('_Open', '')}</span>
                     </td>
-                    <td class="pct-value tp">${p.mfe_p50?.toFixed(1)} pips</td>
-                    <td class="pct-value sl">${p.mae_p75?.toFixed(1)} pips</td>
+                    <td class="pct-value tp">${p.mfe_p75?.toFixed(1)} pips</td>
+                    <td class="pct-value sl">${p.mae_p50?.toFixed(1)} pips</td>
                     <td class="pct-value">${p.accuracy_pct?.toFixed(1)}%</td>
                     <td class="pct-value">${p.sample_count}</td>
                 </tr>

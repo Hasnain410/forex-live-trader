@@ -45,9 +45,11 @@ class Settings(BaseSettings):
     # Rolling Window
     rolling_window_months: int = Field(default=6)
 
-    # Percentile Strategy
-    tp_percentile: Literal["P25", "P50", "P75"] = Field(default="P50")
-    sl_percentile: Literal["P25", "P50", "P75"] = Field(default="P75")
+    # Percentile Strategy (matches backtester P/L Simulator)
+    # TP uses P75 of MFE (Aggressive - 75th percentile)
+    # SL uses P50 of MAE (Median - 50th percentile)
+    tp_percentile: Literal["P25", "P50", "P75"] = Field(default="P75")
+    sl_percentile: Literal["P25", "P50", "P75"] = Field(default="P50")
 
     # Pre-warm Timing
     ohlc_prewarm_seconds: int = Field(default=120)
