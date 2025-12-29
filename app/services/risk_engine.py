@@ -22,9 +22,10 @@ from ..utils.forex_utils import get_pip_value, get_pip_value_in_usd
 
 @dataclass
 class PercentileTargets:
-    """Percentile data for a pair/session combination."""
+    """Percentile data for a pair/session/model combination."""
     pair: str
     session_name: str
+    model: str
     sample_count: int
     accuracy_pct: float
     mfe_p25: float
@@ -52,7 +53,7 @@ class RiskParameters:
     percentile_source: str  # e.g., "P50/P75"
 
 
-async def get_percentiles(pair: str, session_name: str) -> Optional[PercentileTargets]:
+async def get_percentiles(pair: str, session_name: str, model: str = "claude_haiku_45") -> Optional[PercentileTargets]:
     """
     Fetch cached percentiles from the materialized view.
 
@@ -62,6 +63,7 @@ async def get_percentiles(pair: str, session_name: str) -> Optional[PercentileTa
     Args:
         pair: Currency pair (e.g., 'EURUSD')
         session_name: Session name (e.g., 'London_Open')
+        model: AI model key (e.g., 'claude_haiku_45')
 
     Returns:
         PercentileTargets or None if not found
@@ -70,15 +72,15 @@ async def get_percentiles(pair: str, session_name: str) -> Optional[PercentileTa
 
     query = """
         SELECT
-            pair, session_name, sample_count, accuracy_pct,
+            pair, session_name, model, sample_count, accuracy_pct,
             mfe_p25, mfe_p50, mfe_p75,
             mae_p25, mae_p50, mae_p75
         FROM percentile_targets
-        WHERE pair = $1 AND session_name = $2
+        WHERE pair = $1 AND session_name = $2 AND model = $3
     """
 
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(query, pair, session_name)
+        row = await conn.fetchrow(query, pair, session_name, model)
 
         if row is None:
             return None
@@ -86,6 +88,7 @@ async def get_percentiles(pair: str, session_name: str) -> Optional[PercentileTa
         return PercentileTargets(
             pair=row['pair'],
             session_name=row['session_name'],
+            model=row['model'],
             sample_count=row['sample_count'],
             accuracy_pct=float(row['accuracy_pct']) if row['accuracy_pct'] else 0.0,
             mfe_p25=float(row['mfe_p25']) if row['mfe_p25'] else 0.0,
@@ -290,39 +293,55 @@ async def calculate_risk_parameters(
     )
 
 
-async def get_all_percentiles() -> list:
+async def get_all_percentiles(model: str = None) -> list:
     """
     Fetch all percentile targets for dashboard display.
 
+    Args:
+        model: Filter by model (optional). If None, returns all models.
+
     Returns:
-        List of PercentileTargets for all pair/session combinations
+        List of PercentileTargets for all pair/session/model combinations
     """
     pool = await get_db_pool()
 
-    query = """
-        SELECT
-            pair, session_name, sample_count, accuracy_pct,
-            mfe_p25, mfe_p50, mfe_p75,
-            mae_p25, mae_p50, mae_p75
-        FROM percentile_targets
-        ORDER BY pair, session_name
-    """
+    if model:
+        query = """
+            SELECT
+                pair, session_name, model, sample_count, accuracy_pct,
+                mfe_p25, mfe_p50, mfe_p75,
+                mae_p25, mae_p50, mae_p75
+            FROM percentile_targets
+            WHERE model = $1
+            ORDER BY pair, session_name
+        """
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query, model)
+    else:
+        query = """
+            SELECT
+                pair, session_name, model, sample_count, accuracy_pct,
+                mfe_p25, mfe_p50, mfe_p75,
+                mae_p25, mae_p50, mae_p75
+            FROM percentile_targets
+            ORDER BY pair, session_name, model
+        """
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(query)
 
-    async with pool.acquire() as conn:
-        rows = await conn.fetch(query)
-
-        return [
-            PercentileTargets(
-                pair=row['pair'],
-                session_name=row['session_name'],
-                sample_count=row['sample_count'],
-                accuracy_pct=float(row['accuracy_pct']) if row['accuracy_pct'] else 0.0,
-                mfe_p25=float(row['mfe_p25']) if row['mfe_p25'] else 0.0,
-                mfe_p50=float(row['mfe_p50']) if row['mfe_p50'] else 0.0,
-                mfe_p75=float(row['mfe_p75']) if row['mfe_p75'] else 0.0,
-                mae_p25=float(row['mae_p25']) if row['mae_p25'] else 0.0,
-                mae_p50=float(row['mae_p50']) if row['mae_p50'] else 0.0,
-                mae_p75=float(row['mae_p75']) if row['mae_p75'] else 0.0,
-            )
-            for row in rows
-        ]
+    return [
+        PercentileTargets(
+            pair=row['pair'],
+            session_name=row['session_name'],
+            model=row['model'],
+            sample_count=row['sample_count'],
+            accuracy_pct=float(row['accuracy_pct']) if row['accuracy_pct'] else 0.0,
+            mfe_p25=float(row['mfe_p25']) if row['mfe_p25'] else 0.0,
+            mfe_p50=float(row['mfe_p50']) if row['mfe_p50'] else 0.0,
+            mfe_p75=float(row['mfe_p75']) if row['mfe_p75'] else 0.0,
+            mae_p25=float(row['mae_p25']) if row['mae_p25'] else 0.0,
+            mae_p50=float(row['mae_p50']) if row['mae_p50'] else 0.0,
+            mae_p75=float(row['mae_p75']) if row['mae_p75'] else 0.0,
+        )
+        for row in rows
+    ]

@@ -25,13 +25,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-async def import_baseline(parquet_path: str, db_url: str) -> dict:
+async def import_baseline(parquet_path: str, db_url: str, model: str = "claude_haiku_45") -> dict:
     """
     Import baseline parquet data to PostgreSQL.
 
     Args:
         parquet_path: Path to baseline parquet file
         db_url: PostgreSQL connection URL
+        model: Model key for imported data (default: claude_haiku_45)
 
     Returns:
         Import statistics
@@ -39,6 +40,7 @@ async def import_baseline(parquet_path: str, db_url: str) -> dict:
     print(f"Importing baseline data...")
     print(f"  Source: {parquet_path}")
     print(f"  Database: {db_url.split('@')[-1]}")  # Hide password
+    print(f"  Model: {model}")
 
     # Read parquet file
     df = pd.read_parquet(parquet_path)
@@ -53,8 +55,10 @@ async def import_baseline(parquet_path: str, db_url: str) -> dict:
         print(f"  Cleared existing data: {result}")
 
         # Prepare records for bulk insert
+        # Use model from parquet if available, otherwise use default
         records = []
         for row in df.itertuples():
+            row_model = getattr(row, 'model', None) or model
             records.append((
                 row.pair,
                 row.session_name,
@@ -63,6 +67,7 @@ async def import_baseline(parquet_path: str, db_url: str) -> dict:
                 row.correct,
                 float(row.mfe_pips),
                 float(row.mae_pips),
+                row_model,
                 row.mfe_first if hasattr(row, 'mfe_first') and pd.notna(row.mfe_first) else None,
                 int(row.time_to_mfe_minutes) if hasattr(row, 'time_to_mfe_minutes') and pd.notna(row.time_to_mfe_minutes) else None,
                 int(row.time_to_mae_minutes) if hasattr(row, 'time_to_mae_minutes') and pd.notna(row.time_to_mae_minutes) else None,
@@ -74,7 +79,7 @@ async def import_baseline(parquet_path: str, db_url: str) -> dict:
             records=records,
             columns=[
                 'pair', 'session_name', 'session_datetime',
-                'prediction', 'correct', 'mfe_pips', 'mae_pips',
+                'prediction', 'correct', 'mfe_pips', 'mae_pips', 'model',
                 'mfe_first', 'time_to_mfe_minutes', 'time_to_mae_minutes'
             ]
         )
@@ -119,6 +124,11 @@ async def main():
         default=os.getenv("DATABASE_URL", "postgresql://forex_user:password@localhost:5432/forex_trader"),
         help="PostgreSQL connection URL"
     )
+    parser.add_argument(
+        "--model",
+        default="claude_haiku_45",
+        help="Model key for imported data (default: claude_haiku_45)"
+    )
 
     args = parser.parse_args()
 
@@ -126,7 +136,7 @@ async def main():
         print(f"ERROR: File not found: {args.parquet_path}")
         sys.exit(1)
 
-    result = await import_baseline(args.parquet_path, args.db)
+    result = await import_baseline(args.parquet_path, args.db, args.model)
 
     if result["success"]:
         print(f"\n✅ Import complete!")

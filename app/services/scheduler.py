@@ -156,6 +156,7 @@ class TradingScheduler:
                     'session_name': trade_info['session_name'],
                     'session_datetime': trade_info['session_datetime'],
                     'prediction': trade_info['prediction'],
+                    'model': trade_info.get('model', 'claude_haiku_45'),
                     'outcome': outcome,
                     'trigger_price': alert.trigger_price,
                     'trigger_time': alert.trigger_time,
@@ -453,6 +454,7 @@ class TradingScheduler:
                     'entry_price': trade.entry_price,
                     'take_profit': trade.take_profit,
                     'stop_loss': trade.stop_loss,
+                    'model': result.get('model_key', 'claude_haiku_45'),
                 }
 
                 # Register TP/SL alert for real-time monitoring
@@ -541,6 +543,7 @@ class TradingScheduler:
                         correct=correct,
                         mfe_pips=round(mfe_pips, 1),
                         mae_pips=round(mae_pips, 1),
+                        model=info.get('model', 'claude_haiku_45'),
                     )
                     print(f"  {pair}: {info['outcome']} [REAL-TIME] added to rolling window")
 
@@ -622,6 +625,7 @@ class TradingScheduler:
                         correct=correct,
                         mfe_pips=round(mfe_pips, 1),
                         mae_pips=round(mae_pips, 1),
+                        model=trade_info.get('model', 'claude_haiku_45'),
                     )
 
                     # Remove from active trades

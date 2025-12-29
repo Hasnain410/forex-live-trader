@@ -357,6 +357,7 @@ async def add_to_rolling_window(
     correct: bool,
     mfe_pips: float,
     mae_pips: float,
+    model: str,
     mfe_first: Optional[bool] = None,
     time_to_mfe_minutes: Optional[int] = None,
     time_to_mae_minutes: Optional[int] = None,
@@ -375,6 +376,7 @@ async def add_to_rolling_window(
         correct: Whether prediction was correct
         mfe_pips: Maximum favorable excursion in pips
         mae_pips: Maximum adverse excursion in pips
+        model: AI model that made the prediction (e.g., 'claude_sonnet_45')
         mfe_first: Whether MFE was hit before MAE
         time_to_mfe_minutes: Time to MFE in minutes
         time_to_mae_minutes: Time to MAE in minutes
@@ -384,10 +386,10 @@ async def add_to_rolling_window(
     query = """
         INSERT INTO rolling_window (
             pair, session_name, session_datetime,
-            prediction, correct, mfe_pips, mae_pips,
+            prediction, correct, mfe_pips, mae_pips, model,
             mfe_first, time_to_mfe_minutes, time_to_mae_minutes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-        ON CONFLICT (pair, session_name, session_datetime)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (pair, session_name, session_datetime, model)
         DO UPDATE SET
             correct = EXCLUDED.correct,
             mfe_pips = EXCLUDED.mfe_pips,
@@ -407,6 +409,7 @@ async def add_to_rolling_window(
             correct,
             mfe_pips,
             mae_pips,
+            model,
             mfe_first,
             time_to_mfe_minutes,
             time_to_mae_minutes,

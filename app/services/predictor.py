@@ -25,7 +25,9 @@ from ..config import settings
 
 
 # Haiku 4.5 model identifier
-HAIKU_MODEL = "claude-3-5-haiku-20241022"
+HAIKU_MODEL = "claude-haiku-4-5-20251001"
+# Model key for database storage (matches backtester convention)
+MODEL_KEY = "claude_haiku_45"
 
 # Retry configuration
 MAX_RETRIES = 3
@@ -223,6 +225,7 @@ async def predict(
                 'conviction': parsed['conviction'],
                 'full_analysis': full_text,
                 'model_version': HAIKU_MODEL,
+                'model_key': MODEL_KEY,  # For database storage
                 'api_cost': 0.001,  # ~$0.001 per prediction for Haiku
                 'execution_time_ms': execution_time_ms,
             }
@@ -258,6 +261,7 @@ async def predict(
         'conviction': 0,
         'full_analysis': f'Error: {str(last_error)}',
         'model_version': HAIKU_MODEL,
+        'model_key': MODEL_KEY,
         'api_cost': 0.0,
         'execution_time_ms': execution_time_ms,
         'error': str(last_error)

@@ -83,15 +83,20 @@ async def get_db_pool() -> asyncpg.Pool:
     return db.pool
 
 
-async def get_percentiles(pair: str, session_name: str) -> Optional[dict]:
+async def get_percentiles(pair: str, session_name: str, model: str = "claude_haiku_45") -> Optional[dict]:
     """
     Get cached percentiles from materialized view.
+
+    Args:
+        pair: Currency pair
+        session_name: Session name
+        model: AI model key (default: claude_haiku_45)
 
     Returns:
         {
             'mfe_p25': float, 'mfe_p50': float, 'mfe_p75': float,
             'mae_p25': float, 'mae_p50': float, 'mae_p75': float,
-            'sample_count': int, 'accuracy_pct': float
+            'sample_count': int, 'accuracy_pct': float, 'model': str
         }
     """
     row = await db.fetchrow(
@@ -99,12 +104,13 @@ async def get_percentiles(pair: str, session_name: str) -> Optional[dict]:
         SELECT
             mfe_p25, mfe_p50, mfe_p75,
             mae_p25, mae_p50, mae_p75,
-            sample_count, accuracy_pct
+            sample_count, accuracy_pct, model
         FROM percentile_targets
-        WHERE pair = $1 AND session_name = $2
+        WHERE pair = $1 AND session_name = $2 AND model = $3
         """,
         pair,
         session_name,
+        model,
     )
 
     if row is None:
