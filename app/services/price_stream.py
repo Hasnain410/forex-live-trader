@@ -236,6 +236,9 @@ class PriceStream:
                 msg = await self._ws.recv()
                 data = json.loads(msg)
 
+                # Debug log all incoming messages
+                logger.debug(f"WS received: {msg[:200]}")
+
                 for item in data if isinstance(data, list) else [data]:
                     await self._handle_message(item)
 
@@ -334,11 +337,14 @@ class PriceStream:
         return f"C.{pair[:3]}/{pair[3:]}"
 
     def _from_polygon_symbol(self, symbol: str) -> Optional[str]:
-        """Convert C.EUR/USD to EURUSD format."""
-        if not symbol or not symbol.startswith('C.'):
+        """Convert EUR/USD or C.EUR/USD to EURUSD format."""
+        if not symbol:
             return None
-        # Remove C. prefix and slash
-        return symbol[2:].replace('/', '')
+        # Handle both formats: C.EUR/USD (subscription) or EUR/USD (response)
+        if symbol.startswith('C.'):
+            symbol = symbol[2:]
+        # Remove slash: EUR/USD -> EURUSD
+        return symbol.replace('/', '')
 
 
 # Global price stream instance
