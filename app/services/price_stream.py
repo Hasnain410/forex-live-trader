@@ -122,6 +122,23 @@ class PriceStream:
     async def connect(self) -> bool:
         """Connect to Polygon WebSocket and authenticate."""
         try:
+            # Cancel existing receive task if any (prevents duplicate loops)
+            if self._recv_task and not self._recv_task.done():
+                self._recv_task.cancel()
+                try:
+                    await self._recv_task
+                except asyncio.CancelledError:
+                    pass
+                self._recv_task = None
+
+            # Close existing websocket if any
+            if self._ws:
+                try:
+                    await self._ws.close()
+                except Exception:
+                    pass
+                self._ws = None
+
             logger.info(f"Connecting to Polygon WebSocket...")
             self._ws = await websockets.connect(
                 self.POLYGON_WS_URL,
@@ -231,10 +248,14 @@ class PriceStream:
 
     async def _receive_loop(self):
         """Main receive loop for WebSocket messages."""
+        consecutive_errors = 0
+        max_consecutive_errors = 5
+
         while self._running and self._ws:
             try:
                 msg = await self._ws.recv()
                 data = json.loads(msg)
+                consecutive_errors = 0  # Reset on success
 
                 # Debug log all incoming messages
                 logger.debug(f"WS received: {msg[:200]}")
@@ -247,10 +268,19 @@ class PriceStream:
                 self._connected.clear()
                 if self._running:
                     await self._reconnect()
+                break  # EXIT loop after reconnect (new loop spawned by connect)
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error(f"Error in receive loop: {e}")
+                consecutive_errors += 1
+                logger.error(f"Error in receive loop ({consecutive_errors}/{max_consecutive_errors}): {e}")
+
+                if consecutive_errors >= max_consecutive_errors:
+                    logger.error("Too many consecutive errors, stopping receive loop")
+                    self._connected.clear()
+                    break  # EXIT loop on repeated errors
+
+                await asyncio.sleep(1)  # Backoff before retry
 
     async def _handle_message(self, msg: dict):
         """Handle incoming WebSocket message."""
