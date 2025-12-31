@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade History - Forex Live Trader</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --border: #1e1e2e;
+            --text: #e0e0e0;
+            --text-dim: #888;
+            --green: #00c853;
+            --red: #ff5252;
+            --blue: #4fc3f7;
+            --purple: #b388ff;
+            --orange: #ffab40;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        h1 { font-size: 24px; font-weight: 600; }
+        .back-link {
+            color: var(--blue);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-value { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+        .stat-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; }
+        .filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        select, input {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .table-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: rgba(255,255,255,0.03); color: var(--text-dim); font-weight: 500; text-transform: uppercase; font-size: 11px; }
+        tr:hover { background: rgba(255,255,255,0.02); }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge.bullish { background: rgba(0,200,83,0.15); color: var(--green); }
+        .badge.bearish { background: rgba(255,82,82,0.15); color: var(--red); }
+        .badge.neutral { background: rgba(136,136,136,0.15); color: var(--text-dim); }
+        .badge.tp { background: rgba(0,200,83,0.15); color: var(--green); }
+        .badge.sl { background: rgba(255,82,82,0.15); color: var(--red); }
+        .badge.timeout { background: rgba(255,171,64,0.15); color: var(--orange); }
+        .badge.open { background: rgba(79,195,247,0.15); color: var(--blue); }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+        }
+        .page-btn {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .page-btn:hover { background: rgba(255,255,255,0.05); }
+        .page-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .page-info { color: var(--text-dim); font-size: 14px; }
+        .empty-state { text-align: center; color: var(--text-dim); padding: 40px; }
+        .positive { color: var(--green); }
+        .negative { color: var(--red); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Trade History</h1>
+            <a href="/" class="back-link">&larr; Back to Dashboard</a>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="totalTrades">-</div>
+                <div class="stat-label">Total Trades</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value positive" id="winCount">-</div>
+                <div class="stat-label">Wins</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value negative" id="lossCount">-</div>
+                <div class="stat-label">Losses</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="winRate">-</div>
+                <div class="stat-label">Win Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalPnl">-</div>
+                <div class="stat-label">Total P/L</div>
+            </div>
+        </div>
+
+        <div class="filters">
+            <select id="filterPair">
+                <option value="">All Pairs</option>
+            </select>
+            <select id="filterSession">
+                <option value="">All Sessions</option>
+                <option value="Asian_Open">Asian</option>
+                <option value="London_Open">London</option>
+                <option value="NY_Open">NY</option>
+            </select>
+            <select id="filterOutcome">
+                <option value="">All Outcomes</option>
+                <option value="TP">TP (Win)</option>
+                <option value="SL">SL (Loss)</option>
+                <option value="TIMEOUT">Timeout</option>
+                <option value="OPEN">Open</option>
+            </select>
+        </div>
+
+        <div class="table-card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date/Time</th>
+                        <th>Pair</th>
+                        <th>Session</th>
+                        <th>Direction</th>
+                        <th>Entry</th>
+                        <th>TP/SL Pips</th>
+                        <th>Lots</th>
+                        <th>Exit</th>
+                        <th>Outcome</th>
+                        <th>P/L Pips</th>
+                        <th>P/L $</th>
+                    </tr>
+                </thead>
+                <tbody id="tradesBody">
+                    <tr><td colspan="11" class="empty-state">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination">
+            <button class="page-btn" id="prevBtn" onclick="prevPage()">&laquo; Previous</button>
+            <span class="page-info" id="pageInfo">Page 1</span>
+            <button class="page-btn" id="nextBtn" onclick="nextPage()">Next &raquo;</button>
+        </div>
+    </div>
+
+    <script>
+        let allTrades = [];
+        let filteredTrades = [];
+        let currentPage = 1;
+        const pageSize = 50;
+
+        const pairs = [
+            'EURUSD', 'GBPUSD', 'USDJPY', 'AUDUSD', 'USDCAD', 'NZDUSD',
+            'EURGBP', 'EURJPY', 'GBPJPY', 'AUDJPY', 'EURAUD', 'EURNZD',
+            'GBPAUD', 'GBPNZD', 'AUDNZD', 'CADJPY', 'NZDJPY', 'XAUUSD', 'XAGUSD'
+        ];
+
+        // Populate pair filter
+        const pairSelect = document.getElementById('filterPair');
+        pairs.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            pairSelect.appendChild(opt);
+        });
+
+        function formatDate(dt) {
+            if (!dt) return '-';
+            const d = new Date(dt);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' +
+                   d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+
+        function formatPrice(price, pair) {
+            if (price == null) return '-';
+            if (pair?.includes('JPY')) return price.toFixed(3);
+            if (pair?.includes('XAU')) return price.toFixed(2);
+            if (pair?.includes('XAG')) return price.toFixed(4);
+            return price.toFixed(5);
+        }
+
+        function formatUsd(val) {
+            if (val == null) return '-';
+            return '$' + Math.abs(val).toFixed(2);
+        }
+
+        async function fetchAllTrades() {
+            try {
+                // Fetch all trades (high limit)
+                const res = await fetch('/api/trades?limit=10000');
+                allTrades = await res.json();
+                applyFilters();
+                updateStats();
+            } catch (err) {
+                console.error('Failed to fetch trades:', err);
+                document.getElementById('tradesBody').innerHTML =
+                    '<tr><td colspan="11" class="empty-state">Failed to load trades</td></tr>';
+            }
+        }
+
+        function applyFilters() {
+            const pair = document.getElementById('filterPair').value;
+            const session = document.getElementById('filterSession').value;
+            const outcome = document.getElementById('filterOutcome').value;
+
+            filteredTrades = allTrades.filter(t => {
+                if (pair && t.pair !== pair) return false;
+                if (session && t.session_name !== session) return false;
+                if (outcome) {
+                    if (outcome === 'OPEN' && t.outcome) return false;
+                    if (outcome !== 'OPEN' && t.outcome !== outcome) return false;
+                }
+                return true;
+            });
+
+            currentPage = 1;
+            renderTrades();
+            updateStats();
+        }
+
+        function updateStats() {
+            const closedTrades = filteredTrades.filter(t => t.outcome); // Only closed trades
+            // Count wins/losses based on P/L (works for TP, SL, and TIMEOUT outcomes)
+            const wins = closedTrades.filter(t => (t.pnl_dollars || 0) > 0).length;
+            const losses = closedTrades.filter(t => (t.pnl_dollars || 0) < 0).length;
+            const totalPnl = closedTrades.reduce((sum, t) => sum + (t.pnl_dollars || 0), 0);
+
+            document.getElementById('totalTrades').textContent = filteredTrades.length;
+            document.getElementById('winCount').textContent = wins;
+            document.getElementById('lossCount').textContent = losses;
+            document.getElementById('winRate').textContent =
+                closedTrades.length > 0 ? ((wins / closedTrades.length) * 100).toFixed(1) + '%' : '-';
+
+            const pnlEl = document.getElementById('totalPnl');
+            pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + formatUsd(totalPnl);
+            pnlEl.className = 'stat-value ' + (totalPnl >= 0 ? 'positive' : 'negative');
+        }
+
+        function renderTrades() {
+            const tbody = document.getElementById('tradesBody');
+            const start = (currentPage - 1) * pageSize;
+            const end = start + pageSize;
+            const pageTrades = filteredTrades.slice(start, end);
+
+            if (pageTrades.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="11" class="empty-state">No trades found</td></tr>';
+            } else {
+                tbody.innerHTML = pageTrades.map(t => `
+                    <tr>
+                        <td>${formatDate(t.session_datetime)}</td>
+                        <td><strong>${t.pair}</strong></td>
+                        <td>${t.session_name?.replace('_Open', '') || '-'}</td>
+                        <td><span class="badge ${t.prediction?.toLowerCase() || ''}">${t.prediction || '-'}</span></td>
+                        <td>${formatPrice(t.entry_price, t.pair)}</td>
+                        <td>${t.tp_pips?.toFixed(1) || '-'} / ${t.sl_pips?.toFixed(1) || '-'}</td>
+                        <td>${t.lot_size?.toFixed(2) || '-'}</td>
+                        <td>${formatPrice(t.exit_price, t.pair)}</td>
+                        <td>${t.outcome
+                            ? `<span class="badge ${t.outcome.toLowerCase()}">${t.outcome}</span>`
+                            : '<span class="badge open">OPEN</span>'}</td>
+                        <td class="${(t.pnl_pips || 0) >= 0 ? 'positive' : 'negative'}">
+                            ${t.pnl_pips != null ? t.pnl_pips.toFixed(1) : '-'}
+                        </td>
+                        <td class="${(t.pnl_dollars || 0) >= 0 ? 'positive' : 'negative'}">
+                            ${t.pnl_dollars != null ? ((t.pnl_dollars >= 0 ? '+' : '') + formatUsd(t.pnl_dollars)) : '-'}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // Update pagination
+            const totalPages = Math.ceil(filteredTrades.length / pageSize);
+            document.getElementById('pageInfo').textContent =
+                `Page ${currentPage} of ${totalPages} (${filteredTrades.length} trades)`;
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderTrades();
+            }
+        }
+
+        function nextPage() {
+            const totalPages = Math.ceil(filteredTrades.length / pageSize);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderTrades();
+            }
+        }
+
+        // Event listeners for filters
+        document.getElementById('filterPair').addEventListener('change', applyFilters);
+        document.getElementById('filterSession').addEventListener('change', applyFilters);
+        document.getElementById('filterOutcome').addEventListener('change', applyFilters);
+
+        // Initial load
+        fetchAllTrades();
+    </script>
+</body>
+</html>

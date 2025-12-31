@@ -288,7 +288,7 @@ class TradingScheduler:
                     pair=pair,
                     start_date=start_date,
                     end_date=session_dt,
-                    api_key=settings.POLYGON_API_KEY
+                    api_key=settings.polygon_api_key
                 )
                 if df is not None and not df.empty:
                     self._ohlc_cache[pair] = df

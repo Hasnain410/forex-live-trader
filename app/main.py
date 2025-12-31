@@ -19,6 +19,10 @@ from fastapi.responses import HTMLResponse
 from app.config import settings, TRADING_PAIRS
 from app.database import db
 from app.services.scheduler import get_scheduler
+from app.services.trade_executor import close_trade, add_to_rolling_window, refresh_percentiles
+from app.utils.polygon_client import fetch_ohlc_data_async
+from app.utils.forex_utils import get_pip_value
+from datetime import timedelta
 
 # Configure logging
 logging.basicConfig(
@@ -100,6 +104,15 @@ async def dashboard():
     if html_path.exists():
         return HTMLResponse(content=html_path.read_text(), status_code=200)
     return HTMLResponse(content="<h1>Dashboard not found</h1>", status_code=404)
+
+
+@app.get("/trades", response_class=HTMLResponse)
+async def trades_history():
+    """Serve the trade history page."""
+    html_path = TEMPLATES_DIR / "trades_history.html"
+    if html_path.exists():
+        return HTMLResponse(content=html_path.read_text(), status_code=200)
+    return HTMLResponse(content="<h1>Trade history not found</h1>", status_code=404)
 
 
 @app.get("/api/info")
@@ -246,6 +259,130 @@ async def stop_scheduler():
     scheduler = get_scheduler()
     scheduler.stop()
     return {"status": "stopped"}
+
+
+@app.post("/api/trades/verify-open")
+async def verify_open_trades():
+    """
+    Manually verify and close all open trades as TIMEOUT.
+
+    Mirrors the normal verification flow:
+    1. Fetches OHLC data for session window
+    2. Calculates MFE/MAE from session high/low
+    3. Closes trade as TIMEOUT with session close price
+    4. Updates rolling_window for percentile calculations
+    5. Refreshes percentiles
+
+    Use this when the verification job was missed due to server restart.
+    """
+    # Get all open trades
+    open_trades = await db.fetch(
+        """
+        SELECT trade_id, pair, session_name, session_datetime,
+               prediction, entry_price, lot_size
+        FROM trades
+        WHERE outcome IS NULL
+        ORDER BY session_datetime
+        """
+    )
+
+    if not open_trades:
+        return {"message": "No open trades to verify", "verified": 0}
+
+    results = []
+    verified = 0
+
+    for trade in open_trades:
+        trade_id = trade['trade_id']
+        pair = trade['pair']
+        session_name = trade['session_name']
+        session_dt = trade['session_datetime']
+        prediction = trade['prediction']
+        entry_price = float(trade['entry_price'])
+
+        try:
+            # Calculate session end (4 hours after open)
+            session_end = session_dt + timedelta(hours=4)
+
+            # Fetch OHLC data for the session
+            df = await fetch_ohlc_data_async(
+                pair=pair,
+                start_date=session_dt,
+                end_date=session_end,
+                api_key=settings.polygon_api_key
+            )
+
+            if df is None or df.empty:
+                results.append({"trade_id": trade_id, "pair": pair, "error": "No OHLC data"})
+                continue
+
+            # Get session prices for MFE/MAE calculation
+            session_close = float(df['close'].iloc[-1])
+            session_high = float(df['high'].max())
+            session_low = float(df['low'].min())
+
+            pip_value = get_pip_value(pair)
+
+            # Calculate MFE/MAE (same logic as scheduler._verify_session)
+            if prediction == 'BULLISH':
+                mfe_pips = (session_high - entry_price) / pip_value
+                mae_pips = abs(entry_price - session_low) / pip_value
+            else:
+                mfe_pips = abs(entry_price - session_low) / pip_value
+                mae_pips = (session_high - entry_price) / pip_value
+
+            # Close as TIMEOUT
+            result = await close_trade(
+                trade_id=trade_id,
+                exit_price=session_close,
+                outcome="TIMEOUT",
+                is_stop_exit=False
+            )
+
+            if result:
+                verified += 1
+
+                # Determine if trade was correct (profitable)
+                correct = result.pnl_dollars > 0
+
+                # Add to rolling window for percentile calculations
+                await add_to_rolling_window(
+                    pair=pair,
+                    session_name=session_name,
+                    session_datetime=session_dt,
+                    prediction=prediction,
+                    correct=correct,
+                    mfe_pips=round(mfe_pips, 1),
+                    mae_pips=round(mae_pips, 1),
+                    model='claude_haiku_45',
+                )
+
+                results.append({
+                    "trade_id": trade_id,
+                    "pair": pair,
+                    "outcome": "TIMEOUT",
+                    "exit_price": session_close,
+                    "pnl_dollars": result.pnl_dollars,
+                    "mfe_pips": round(mfe_pips, 1),
+                    "mae_pips": round(mae_pips, 1),
+                    "correct": correct
+                })
+            else:
+                results.append({"trade_id": trade_id, "pair": pair, "error": "Failed to close"})
+
+        except Exception as e:
+            results.append({"trade_id": trade_id, "pair": pair, "error": str(e)})
+
+    # Refresh percentiles if any trades were verified
+    if verified > 0:
+        await refresh_percentiles()
+
+    return {
+        "message": f"Verified {verified} of {len(open_trades)} trades",
+        "verified": verified,
+        "total": len(open_trades),
+        "results": results
+    }
 
 
 # Price Stream endpoints

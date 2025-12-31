@@ -123,7 +123,7 @@ async def fetch_ohlc_for_chart(pair: str, session_dt: datetime) -> Optional[pd.D
             start_date=start_date,
             end_date=end_date,
             timeframe="15/minute",
-            api_key=settings.POLYGON_API_KEY
+            api_key=settings.polygon_api_key
         )
         return df
     except Exception as e:

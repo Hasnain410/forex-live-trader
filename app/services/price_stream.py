@@ -97,6 +97,7 @@ class PriceStream:
         self._running = False
         self._recv_task: Optional[asyncio.Task] = None
         self._connected = asyncio.Event()
+        self._quote_count = 0  # Track received quotes for debugging
 
     @property
     def is_connected(self) -> bool:
@@ -212,8 +213,9 @@ class PriceStream:
 
         if symbols:
             sub_msg = {"action": "subscribe", "params": ",".join(symbols)}
+            logger.info(f"Sending subscription: {sub_msg}")
             await self._ws.send(json.dumps(sub_msg))
-            logger.info(f"Subscribed to {len(symbols)} pairs")
+            logger.info(f"Subscribed to {len(symbols)} pairs: {symbols[:3]}...")
 
     async def unsubscribe(self, pairs: list[str]):
         """Unsubscribe from forex pairs."""
@@ -248,6 +250,7 @@ class PriceStream:
 
     async def _receive_loop(self):
         """Main receive loop for WebSocket messages."""
+        logger.info("Receive loop started")
         consecutive_errors = 0
         max_consecutive_errors = 5
 
@@ -263,13 +266,16 @@ class PriceStream:
                 for item in data if isinstance(data, list) else [data]:
                     await self._handle_message(item)
 
-            except ConnectionClosed:
-                logger.warning("WebSocket connection closed")
+            except ConnectionClosed as e:
+                logger.warning(f"WebSocket connection closed: code={e.code}, reason={e.reason}, quotes_received={self._quote_count}")
                 self._connected.clear()
+                self._quote_count = 0  # Reset counter for next connection
                 if self._running:
                     await self._reconnect()
+                logger.info("Receive loop exiting after ConnectionClosed")
                 break  # EXIT loop after reconnect (new loop spawned by connect)
             except asyncio.CancelledError:
+                logger.info("Receive loop cancelled")
                 break
             except Exception as e:
                 consecutive_errors += 1
@@ -297,13 +303,20 @@ class PriceStream:
                     timestamp=datetime.fromtimestamp(msg.get('t', 0) / 1000, tz=timezone.utc)
                 )
                 self._quotes[pair] = quote
+                self._quote_count += 1
+
+                # Log first quote and every 100 quotes to show data is flowing
+                if self._quote_count == 1:
+                    logger.info(f"First quote received: {pair} bid={quote.bid} ask={quote.ask}")
+                elif self._quote_count % 100 == 0:
+                    logger.info(f"Received {self._quote_count} quotes, latest: {pair} bid={quote.bid}")
 
                 # Check alerts
                 await self._check_alerts(pair, quote)
 
         # Status messages
         elif msg.get('status'):
-            logger.debug(f"Status: {msg.get('message', msg.get('status'))}")
+            logger.info(f"WS Status: {msg.get('status')} - {msg.get('message', '')}")
 
     async def _check_alerts(self, pair: str, quote: Quote):
         """Check if any TP/SL alerts are triggered."""

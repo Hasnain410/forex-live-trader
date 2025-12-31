@@ -187,7 +187,7 @@ async def predict(
     prompt = build_analysis_prompt(pair, session_name)
 
     # Create async client
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     last_error = None
     for attempt in range(MAX_RETRIES):
